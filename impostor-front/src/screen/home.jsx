@@ -112,7 +112,7 @@ export default function Home() {
 
         {/* Footer */}
         <div className="text-slate-500 text-xs font-bold tracking-widest uppercase mt-4">
-          Versión 1.0 Beta
+          Versión 1.0
         </div>
 
       </div>

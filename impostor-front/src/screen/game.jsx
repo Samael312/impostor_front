@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, MapPin, Skull, LogOut, ShieldCheck, HelpCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { EyeOff, Skull, LogOut, ShieldCheck, HelpCircle } from 'lucide-react';
 import { Layout } from '../components/ui/Layout';
 import socket from '../socket';
 
@@ -10,7 +10,7 @@ export default function Game() {
   const navigate = useNavigate();
   const [cardFlipped, setCardFlipped] = useState(false);
 
-  // Validación: Si no hay rol (recarga de página), volver al inicio
+  // Validación: Si no hay rol (por recarga de página), volver al inicio
   useEffect(() => {
     if (!state?.role) {
       navigate('/');
@@ -19,7 +19,9 @@ export default function Game() {
 
   if (!state) return null;
 
-  const { role, location, category } = state;
+  // Extraemos los datos. Ignoramos 'category' para no mostrarla.
+  // 'location' viene del backend conteniendo la palabra secreta.
+  const { role, location: secretWord } = state;
   const isImpostor = role === 'impostor';
 
   const handleExit = () => {
@@ -33,17 +35,13 @@ export default function Game() {
     <Layout>
       <div className="flex flex-col items-center justify-center min-h-[80vh] w-full max-w-2xl mx-auto gap-8 py-6">
         
-        {/* --- HEADER: INFO DE LA PARTIDA --- */}
-        <div className="flex flex-col items-center space-y-2 animate-in fade-in slide-in-from-top-4 duration-700">
-            <div className="flex items-center gap-2 text-xs font-bold text-indigo-200 uppercase tracking-widest bg-indigo-900/30 border border-indigo-500/20 px-4 py-1.5 rounded-full">
-                <span>Categoría:</span>
-                <span className="text-white">{category}</span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-black text-white text-center leading-tight">
-                TU IDENTIDAD SECRETA
+        {/* --- HEADER --- */}
+        <div className="flex flex-col items-center space-y-3 animate-in fade-in slide-in-from-top-4 duration-700">
+            <h1 className="text-3xl md:text-4xl font-black text-white text-center leading-tight drop-shadow-xl">
+                TU IDENTIDAD
             </h1>
-            <p className="text-slate-400 text-sm max-w-xs text-center">
-                Toca la tarjeta para revelar o esconder tu rol. ¡Que no te vean!
+            <p className="text-slate-400 text-sm max-w-xs text-center font-medium">
+                Toca la tarjeta para ver tu rol y tu palabra.
             </p>
         </div>
 
@@ -67,7 +65,6 @@ export default function Game() {
                     <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden border-4 border-indigo-500/30 shadow-2xl shadow-indigo-900/50 bg-slate-900">
                         {/* Patrón de fondo */}
                         <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#4f46e5_1px,transparent_1px)] [background-size:16px_16px]" />
-                        
                         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-slate-900 to-indigo-900/80" />
                         
                         <div className="relative z-10 h-full flex flex-col items-center justify-center p-6 text-center gap-6">
@@ -76,7 +73,7 @@ export default function Game() {
                             </div>
                             <div>
                                 <h2 className="text-3xl font-black text-white tracking-widest mb-2">TOP SECRET</h2>
-                                <p className="text-indigo-200 text-sm font-medium">Toca para ver tu rol</p>
+                                <p className="text-indigo-200 text-sm font-medium">Toca para revelar</p>
                             </div>
                             <div className="bg-indigo-500/20 text-indigo-300 text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-2">
                                 <EyeOff size={14} /> Solo para tus ojos
@@ -88,8 +85,8 @@ export default function Game() {
                     <div 
                         className={`absolute inset-0 backface-hidden rotate-y-180 rounded-3xl overflow-hidden border-4 shadow-2xl flex flex-col ${
                             isImpostor 
-                            ? 'bg-gradient-to-br from-red-600 to-rose-800 border-red-400 shadow-red-900/50' 
-                            : 'bg-gradient-to-br from-emerald-500 to-teal-700 border-emerald-300 shadow-emerald-900/50'
+                            ? 'bg-gradient-to-br from-red-600 to-rose-900 border-red-400 shadow-red-900/50' 
+                            : 'bg-gradient-to-br from-emerald-500 to-teal-800 border-emerald-300 shadow-emerald-900/50'
                         }`}
                     >
                         {/* Overlay sutil */}
@@ -98,42 +95,44 @@ export default function Game() {
                         <div className="relative z-10 h-full flex flex-col items-center justify-center p-6 text-center text-white">
                             
                             {/* Icono Principal */}
-                            <div className="mb-6">
+                            <div className="mb-4">
                                 {isImpostor ? (
-                                    <div className="bg-black/20 p-6 rounded-full ring-4 ring-white/10 animate-bounce-slow">
-                                        <Skull size={64} strokeWidth={1.5} />
+                                    <div className="bg-black/20 p-5 rounded-full ring-4 ring-white/10 animate-bounce-slow">
+                                        <Skull size={56} strokeWidth={1.5} />
                                     </div>
                                 ) : (
-                                    <div className="bg-black/20 p-6 rounded-full ring-4 ring-white/10">
-                                        <ShieldCheck size={64} strokeWidth={1.5} />
+                                    <div className="bg-black/20 p-5 rounded-full ring-4 ring-white/10">
+                                        <ShieldCheck size={56} strokeWidth={1.5} />
                                     </div>
                                 )}
                             </div>
 
                             {/* Título de Rol */}
-                            <h2 className="text-4xl font-black uppercase tracking-tight drop-shadow-md mb-2">
-                                {isImpostor ? "IMPOSTOR" : "CIVIL"}
+                            <h2 className="text-3xl font-black uppercase tracking-tight drop-shadow-md mb-2">
+                                {isImpostor ? "IMPOSTOR" : "JUGADOR"}
                             </h2>
 
                             <div className="w-16 h-1 bg-white/30 rounded-full mb-6" />
 
-                            {/* Información Específica */}
-                            <div className="bg-black/20 rounded-2xl p-4 w-full backdrop-blur-sm border border-white/10">
-                                <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-1">
-                                    {isImpostor ? "OBJETIVO" : "UBICACIÓN"}
+                            {/* Información Específica: PALABRA O INCOGNITA */}
+                            <div className="bg-black/20 rounded-2xl p-4 w-full backdrop-blur-sm border border-white/10 shadow-inner">
+                                <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-1">
+                                    {isImpostor ? "TU OBJETIVO" : "PALABRA CLAVE"}
                                 </p>
-                                <p className="text-2xl sm:text-3xl font-black leading-none break-words">
-                                    {isImpostor ? "¿Dónde están?" : location}
+                                <p className="text-2xl sm:text-3xl font-black leading-tight break-words py-1">
+                                    {isImpostor ? "¿Cuál es la palabra?" : secretWord}
                                 </p>
                             </div>
 
-                            {/* Instrucción secundaria */}
-                            <p className="mt-6 text-xs font-medium text-white/80 max-w-[200px] leading-relaxed">
-                                {isImpostor 
-                                    ? "Engaña a los demás. Finge que sabes dónde estás." 
-                                    : "Encuentra al mentiroso sin revelar demasiado la ubicación."
-                                }
-                            </p>
+                            {/* Instrucción secundaria contextualizada */}
+                            <div className="mt-6 bg-black/10 rounded-lg p-3 border border-white/5">
+                                <p className="text-xs font-bold text-white/90 leading-relaxed">
+                                    {isImpostor 
+                                        ? "Escucha, deduce y finge. ¡Que no sepan que no sabes la palabra!" 
+                                        : "Da una pista sutil sobre la palabra, pero no seas obvio o el Impostor lo sabrá."
+                                    }
+                                </p>
+                            </div>
 
                         </div>
                     </div>
@@ -153,7 +152,7 @@ export default function Game() {
 
       </div>
 
-      {/* Estilos globales para 3D (Si Tailwind no tiene plugin 3d activado) */}
+      {/* Estilos globales para 3D */}
       <style>{`
         .perspective-1000 { perspective: 1000px; }
         .preserve-3d { transform-style: preserve-3d; }

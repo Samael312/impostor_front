@@ -29,13 +29,18 @@ export default function Lobby() {
         return;
     }
 
-    // Unirse a la sala si no venimos redirigidos con estado completo
-    if (!state?.players && !joined) {
-        socket.emit('join_room', { 
-            roomCode: roomId, 
-            nickname: myNickname,
-            avatarConfig: state?.avatarConfig || {} 
-        });
+    // Unirse a la sala si no venimos redirigidos con estado completo o si recargamos
+    if (!joined) {
+        // Si ya hay jugadores en el state (venimos de crear sala), no emitimos join de nuevo inmediatamente
+        // Pero para simplificar lógica de reconexión visual:
+        if (!state?.players) {
+            socket.emit('join_room', { 
+                roomCode: roomId, 
+                nickname: myNickname,
+                // Enviamos la configuración del avatar elegida
+                avatarConfig: state?.avatarConfig || {} 
+            });
+        }
         setJoined(true);
     }
 
@@ -136,10 +141,14 @@ export default function Lobby() {
                             exit={{ opacity: 0, scale: 0.9 }}
                             className="bg-slate-800 hover:bg-slate-700 border border-white/5 p-3 rounded-xl flex items-center gap-4 transition-colors group relative overflow-hidden"
                         >
-                            {/* Avatar */}
+                            {/* CORRECCIÓN AQUÍ: 
+                                Usamos p.avatar.style y p.avatar.seed que vienen del backend.
+                                Si por alguna razón fallan, usamos valores por defecto.
+                            */}
                             <Avatar 
-                                seed={p.name} 
-                                className="w-12 h-12 border-2 border-indigo-500/30 group-hover:border-indigo-400 transition-colors" 
+                                style={p.avatar?.style || 'bottts-neutral'} 
+                                seed={p.avatar?.seed || p.name} 
+                                className="w-12 h-12 border-2 border-indigo-500/30 group-hover:border-indigo-400 transition-colors bg-slate-900" 
                                 bgColor="bg-slate-900"
                             />
                             
@@ -154,7 +163,7 @@ export default function Lobby() {
                                 )}
                             </div>
 
-                            {/* Decoración fondo */}
+                            {/* Decoración fondo para el Host */}
                             {p.isHost && (
                                 <div className="absolute right-0 top-0 p-2 opacity-10">
                                     <Crown size={40} />
@@ -164,7 +173,7 @@ export default function Lobby() {
                     ))}
                 </AnimatePresence>
                 
-                {/* Placeholder Slots (Opcional, para que se vea que hay hueco) */}
+                {/* Placeholder Slots */}
                 {Array.from({ length: Math.max(0, 3 - players.length) }).map((_, i) => (
                     <div key={`empty-${i}`} className="border-2 border-dashed border-white/5 rounded-xl p-4 flex items-center justify-center gap-2 text-white/20 h-[74px]">
                         <div className="w-2 h-2 rounded-full bg-white/10 animate-pulse" />

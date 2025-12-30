@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-// Asegúrate de que las rutas coinciden con tus carpetas (screen o screens)
+// Verifica que la ruta de la carpeta sea correcta (pages o screen)
+// y que los nombres de archivo empiecen con Mayúscula si así los creaste.
 import Home from './screen/home';
 import Online from './screen/online';
 import Lobby from './screen/lobby';
 import Game from './screen/game';
 import CreateGame from './screen/CreateGame';
+import SetupGame from './screen/SetupGame'; // El archivo nuevo
 import LocalSetup from './screen/LocalSetup';
 import LocalGame from './screen/LocalGame';
 
@@ -13,14 +15,21 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Rutas Principales */}
         <Route path="/" element={<Home />} />
         <Route path="/online" element={<Online />} />
-        <Route path="/create" element={<CreateGame />} />
         
-        {/* La sala requiere un ID en la URL para poder compartir el link */}
+        {/* Crear partida desde cero */}
+        <Route path="/create" element={<CreateGame />} />
+
+        {/* --- CORRECCIÓN CRÍTICA AQUÍ --- */}
+        {/* Debe ser /game/setup para coincidir con el botón de "Repetir Partida" en Game.jsx */}
+        <Route path="/game/setup" element={<SetupGame />} />
+        
+        {/* Sala de espera (Lobby) */}
         <Route path="/lobby/:roomId" element={<Lobby />} />
         
-        {/* El juego recibe los datos por 'state', no es obligatorio el ID en la URL */}
+        {/* Pantalla de Juego */}
         <Route path="/game" element={<Game />} />
 
         {/* Rutas locales */}

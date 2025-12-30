@@ -16,10 +16,28 @@ export default function Game() {
     if (!state?.role) navigate('/');
   }, [state, navigate]);
 
+  // --- LÓGICA DE SOCKETS ---
   useEffect(() => {
     const handleDebateStarted = () => setGamePhase('debate');
     
-    // Regreso de seguridad al lobby
+    // CORRECCIÓN: Listener para detectar NUEVA PARTIDA (Reinicio)
+    const handleNewGame = (newGameData) => {
+        // Forzamos la navegación a la misma ruta pero con el nuevo estado
+        navigate('/game', { 
+            state: { 
+                ...newGameData, 
+                roomId: state.roomId,
+                nickname: state.nickname,
+                isHost: state.isHost,
+                players: newGameData.players || state.players 
+            },
+            replace: true // Importante para reemplazar el historial y recargar
+        });
+        // Reiniciamos estados locales visuales
+        setGamePhase('reveal');
+        setCardFlipped(false);
+    };
+
     const handleBackToLobby = () => {
         navigate(`/lobby/${state.roomId}`, { 
             state: { 
@@ -31,10 +49,12 @@ export default function Game() {
     };
 
     socket.on('debate_started', handleDebateStarted);
+    socket.on('game_started', handleNewGame); // <--- ESCUCHAR NUEVA PARTIDA
     socket.on('return_to_lobby', handleBackToLobby);
 
     return () => {
         socket.off('debate_started', handleDebateStarted);
+        socket.off('game_started', handleNewGame); // <--- LIMPIAR LISTENER
         socket.off('return_to_lobby', handleBackToLobby);
     };
   }, [navigate, state]);

@@ -1,41 +1,130 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { EyeOff, Skull, LogOut, ShieldCheck, HelpCircle } from 'lucide-react';
+import { EyeOff, Skull, LogOut, ShieldCheck, HelpCircle, MessageSquare, Users, Home, RefreshCw } from 'lucide-react';
 import { Layout } from '../components/ui/Layout';
 import socket from '../socket';
 
 export default function Game() {
   const { state } = useLocation();
   const navigate = useNavigate();
+  
   const [cardFlipped, setCardFlipped] = useState(false);
+  const [gamePhase, setGamePhase] = useState('reveal'); 
 
-  // Validación: Si no hay rol (por recarga de página), volver al inicio
   useEffect(() => {
-    if (!state?.role) {
-      navigate('/');
-    }
+    if (!state?.role) navigate('/');
   }, [state, navigate]);
+
+  // --- LÓGICA DE SOCKETS ---
+  useEffect(() => {
+    const handleDebateStarted = () => setGamePhase('debate');
+    
+    // ESCUCHAMOS SI EL HOST RESETEA LA PARTIDA
+    const handleBackToLobby = () => {
+        // Volvemos al lobby con el mismo roomId y nuestro nickname
+        navigate(`/lobby/${state.roomId}`, { 
+            state: { 
+                nickname: state.nickname, // Importante mantener el nickname
+                isHost: state.isHost,
+                players: state.players // Opcional, el lobby se actualizará solo
+            } 
+        });
+    };
+
+    socket.on('debate_started', handleDebateStarted);
+    socket.on('return_to_lobby', handleBackToLobby); // Nuevo evento
+
+    return () => {
+        socket.off('debate_started', handleDebateStarted);
+        socket.off('return_to_lobby', handleBackToLobby);
+    };
+  }, [navigate, state]);
 
   if (!state) return null;
 
-  // Extraemos los datos. Ignoramos 'category' para no mostrarla.
-  // 'location' viene del backend conteniendo la palabra secreta.
-  const { role, location: secretWord } = state;
+  const { role, location: secretWord, roomId, isHost } = state;
   const isImpostor = role === 'impostor';
 
+  const handleStartDebate = () => {
+      socket.emit('start_debate', { roomCode: roomId });
+  };
+
+  // NUEVA FUNCIÓN: RESETEAR PARTIDA
+  const handleResetGame = () => {
+      // Emitimos al servidor que queremos volver al lobby
+      socket.emit('reset_game', { roomCode: roomId });
+  };
+
   const handleExit = () => {
-     if (window.confirm("¿Seguro que quieres salir? La partida continuará sin ti.")) {
+     if (window.confirm("¿Seguro que quieres salir?")) {
         socket.emit('disconnect_game'); 
         navigate('/');
      }
   };
 
+  // --- FASE DE DEBATE ---
+  if (gamePhase === 'debate') {
+    return (
+        <Layout>
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-8 animate-in zoom-in duration-500">
+                
+                {/* Icono y Texto */}
+                <div className="space-y-4">
+                    <motion.div 
+                        initial={{ scale: 0 }} animate={{ scale: 1 }}
+                        className="bg-orange-500/20 p-8 rounded-full border-4 border-orange-500/50 inline-block mb-4 shadow-[0_0_40px_rgba(249,115,22,0.3)]"
+                    >
+                         <Users size={64} className="text-orange-400 animate-bounce" />
+                    </motion.div>
+                    
+                    <div>
+                        <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter drop-shadow-lg">
+                            Hora de Debatir
+                        </h2>
+                        <div className="h-1 w-24 bg-orange-500 mx-auto my-4 rounded-full"/>
+                    </div>
+                    
+                    <p className="text-orange-100/80 text-lg max-w-sm mx-auto font-medium leading-relaxed">
+                        Discutan entre ustedes.<br/>
+                        <span className="text-white font-bold">¿Quién es el impostor?</span>
+                    </p>
+                </div>
+
+                {/* BOTONES DE ACCIÓN */}
+                <div className="w-full max-w-sm space-y-3 pt-8">
+                    
+                    {/* BOTÓN SOLO PARA HOST: REPETIR PARTIDA */}
+                    {isHost && (
+                        <button 
+                            onClick={handleResetGame}
+                            className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all"
+                        >
+                            <RefreshCw size={24} className="animate-spin-slow" /> 
+                            CONFIGURAR NUEVA PARTIDA
+                        </button>
+                    )}
+
+                    <button 
+                        onClick={handleExit}
+                        className="w-full bg-slate-800 hover:bg-slate-700 active:scale-95 border border-white/10 text-slate-300 font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all"
+                    >
+                        <Home size={20}/> VOLVER AL INICIO
+                    </button>
+                </div>
+            </div>
+        </Layout>
+    );
+  }
+
+  // ----------------------------------------------------
+  // VISTA 1: REVELACIÓN DE CARTA (Default)
+  // ----------------------------------------------------
   return (
     <Layout>
       <div className="flex flex-col items-center justify-center min-h-[80vh] w-full max-w-2xl mx-auto gap-8 py-6">
         
-        {/* --- HEADER --- */}
+        {/* HEADER */}
         <div className="flex flex-col items-center space-y-3 animate-in fade-in slide-in-from-top-4 duration-700">
             <h1 className="text-3xl md:text-4xl font-black text-white text-center leading-tight drop-shadow-xl">
                 TU IDENTIDAD
@@ -45,7 +134,7 @@ export default function Game() {
             </p>
         </div>
 
-        {/* --- CARTA 3D INTERACTIVA --- */}
+        {/* CARTA 3D INTERACTIVA */}
         <div className="perspective-1000 w-full flex justify-center py-4">
             <motion.div
                 className="relative w-72 h-[420px] sm:w-80 sm:h-[480px] cursor-pointer group"
@@ -61,9 +150,8 @@ export default function Game() {
                     animate={{ rotateY: cardFlipped ? 180 : 0 }}
                     transition={{ type: "spring", stiffness: 260, damping: 20 }}
                 >
-                    {/* --- LADO FRONTAL (OCULTO) --- */}
+                    {/* LADO FRONTAL (OCULTO) */}
                     <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden border-4 border-indigo-500/30 shadow-2xl shadow-indigo-900/50 bg-slate-900">
-                        {/* Patrón de fondo */}
                         <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#4f46e5_1px,transparent_1px)] [background-size:16px_16px]" />
                         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-slate-900 to-indigo-900/80" />
                         
@@ -81,7 +169,7 @@ export default function Game() {
                         </div>
                     </div>
 
-                    {/* --- LADO TRASERO (REVELADO) --- */}
+                    {/* LADO TRASERO (REVELADO) */}
                     <div 
                         className={`absolute inset-0 backface-hidden rotate-y-180 rounded-3xl overflow-hidden border-4 shadow-2xl flex flex-col ${
                             isImpostor 
@@ -89,12 +177,8 @@ export default function Game() {
                             : 'bg-gradient-to-br from-emerald-500 to-teal-800 border-emerald-300 shadow-emerald-900/50'
                         }`}
                     >
-                        {/* Overlay sutil */}
                         <div className="absolute inset-0 bg-black/10" />
-
                         <div className="relative z-10 h-full flex flex-col items-center justify-center p-6 text-center text-white">
-                            
-                            {/* Icono Principal */}
                             <div className="mb-4">
                                 {isImpostor ? (
                                     <div className="bg-black/20 p-5 rounded-full ring-4 ring-white/10 animate-bounce-slow">
@@ -106,15 +190,10 @@ export default function Game() {
                                     </div>
                                 )}
                             </div>
-
-                            {/* Título de Rol */}
                             <h2 className="text-3xl font-black uppercase tracking-tight drop-shadow-md mb-2">
                                 {isImpostor ? "IMPOSTOR" : "JUGADOR"}
                             </h2>
-
                             <div className="w-16 h-1 bg-white/30 rounded-full mb-6" />
-
-                            {/* Información Específica: PALABRA O INCOGNITA */}
                             <div className="bg-black/20 rounded-2xl p-4 w-full backdrop-blur-sm border border-white/10 shadow-inner">
                                 <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-1">
                                     {isImpostor ? "TU OBJETIVO" : "PALABRA CLAVE"}
@@ -123,8 +202,6 @@ export default function Game() {
                                     {isImpostor ? "¿Cuál es la palabra?" : secretWord}
                                 </p>
                             </div>
-
-                            {/* Instrucción secundaria contextualizada */}
                             <div className="mt-6 bg-black/10 rounded-lg p-3 border border-white/5">
                                 <p className="text-xs font-bold text-white/90 leading-relaxed">
                                     {isImpostor 
@@ -133,15 +210,26 @@ export default function Game() {
                                     }
                                 </p>
                             </div>
-
                         </div>
                     </div>
                 </motion.div>
             </motion.div>
         </div>
 
-        {/* --- FOOTER / SALIR --- */}
-        <div className="mt-auto">
+        {/* --- FOOTER: ACCIONES --- */}
+        <div className="mt-auto flex flex-col items-center gap-4 w-full max-w-sm">
+             
+             {/* BOTÓN SOLO PARA HOST */}
+             {isHost && (
+                <button 
+                    onClick={handleStartDebate}
+                    className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:scale-105 transition-all text-white font-black py-4 rounded-xl shadow-lg shadow-orange-900/20 flex items-center justify-center gap-3 animate-in slide-in-from-bottom-5 duration-1000"
+                >
+                    <MessageSquare size={20} fill="currentColor" className="text-white/90" />
+                    INICIAR DEBATE
+                </button>
+             )}
+
              <button 
                 onClick={handleExit}
                 className="flex items-center gap-2 text-slate-500 hover:text-red-400 transition-colors px-4 py-2 rounded-lg hover:bg-white/5 text-sm font-bold"
@@ -152,7 +240,6 @@ export default function Game() {
 
       </div>
 
-      {/* Estilos globales para 3D */}
       <style>{`
         .perspective-1000 { perspective: 1000px; }
         .preserve-3d { transform-style: preserve-3d; }

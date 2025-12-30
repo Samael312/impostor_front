@@ -12,16 +12,14 @@ export default function Game() {
   const [cardFlipped, setCardFlipped] = useState(false);
   const [gamePhase, setGamePhase] = useState('reveal'); 
 
-  // Protección: Si no hay rol, volvemos al inicio
   useEffect(() => {
     if (!state?.role) navigate('/');
   }, [state, navigate]);
 
-  // --- LÓGICA DE SOCKETS ---
   useEffect(() => {
     const handleDebateStarted = () => setGamePhase('debate');
     
-    // Mantenemos esto por seguridad, por si el servidor fuerza volver al lobby
+    // Regreso de seguridad al lobby
     const handleBackToLobby = () => {
         navigate(`/lobby/${state.roomId}`, { 
             state: { 
@@ -46,20 +44,17 @@ export default function Game() {
   const { role, location: secretWord, roomId, isHost } = state;
   const isImpostor = role === 'impostor';
 
-  // Iniciar la fase de votación/debate (visual)
   const handleStartDebate = () => {
       socket.emit('start_debate', { roomCode: roomId });
   };
 
-  // --- NUEVA LÓGICA: IR A CONFIGURAR SIGUIENTE RONDA ---
   const handleConfigureNewRound = () => {
-      // En lugar de resetear, vamos a la pantalla de Setup manteniendo la room
       navigate('/game/setup', { 
           state: { 
               roomId: roomId,
               nickname: state.nickname,
               isHost: true,
-              players: state.players // Pasamos los jugadores actuales para calcular límites
+              players: state.players 
           } 
       });
   };
@@ -71,15 +66,11 @@ export default function Game() {
      }
   };
 
-  // ----------------------------------------------------
-  // FASE 2: DEBATE
-  // ----------------------------------------------------
+  // --- FASE 2: DEBATE ---
   if (gamePhase === 'debate') {
     return (
         <Layout>
             <div className="h-full flex flex-col items-center justify-center text-center space-y-8 animate-in zoom-in duration-500">
-                
-                {/* Icono y Texto */}
                 <div className="space-y-4">
                     <motion.div 
                         initial={{ scale: 0 }} animate={{ scale: 1 }}
@@ -101,9 +92,7 @@ export default function Game() {
                     </p>
                 </div>
 
-                {/* BOTONES DE ACCIÓN */}
                 <div className="w-full max-w-sm space-y-3 pt-8">
-                    
                     {/* BOTÓN SOLO PARA HOST: IR A SETUP */}
                     {isHost && (
                         <button 
@@ -127,14 +116,11 @@ export default function Game() {
     );
   }
 
-  // ----------------------------------------------------
-  // FASE 1: REVELACIÓN DE CARTA (Default)
-  // ----------------------------------------------------
+  // --- FASE 1: REVELACIÓN DE CARTA ---
   return (
     <Layout>
       <div className="flex flex-col items-center justify-center min-h-[80vh] w-full max-w-2xl mx-auto gap-8 py-6">
         
-        {/* HEADER */}
         <div className="flex flex-col items-center space-y-3 animate-in fade-in slide-in-from-top-4 duration-700">
             <h1 className="text-3xl md:text-4xl font-black text-white text-center leading-tight drop-shadow-xl">
                 TU IDENTIDAD
@@ -144,7 +130,6 @@ export default function Game() {
             </p>
         </div>
 
-        {/* CARTA 3D INTERACTIVA */}
         <div className="perspective-1000 w-full flex justify-center py-4">
             <motion.div
                 className="relative w-72 h-[420px] sm:w-80 sm:h-[480px] cursor-pointer group"
@@ -160,7 +145,7 @@ export default function Game() {
                     animate={{ rotateY: cardFlipped ? 180 : 0 }}
                     transition={{ type: "spring", stiffness: 260, damping: 20 }}
                 >
-                    {/* LADO FRONTAL (OCULTO) */}
+                    {/* LADO FRONTAL */}
                     <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden border-4 border-indigo-500/30 shadow-2xl shadow-indigo-900/50 bg-slate-900">
                         <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#4f46e5_1px,transparent_1px)] [background-size:16px_16px]" />
                         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-slate-900 to-indigo-900/80" />
@@ -179,7 +164,7 @@ export default function Game() {
                         </div>
                     </div>
 
-                    {/* LADO TRASERO (REVELADO) */}
+                    {/* LADO TRASERO */}
                     <div 
                         className={`absolute inset-0 backface-hidden rotate-y-180 rounded-3xl overflow-hidden border-4 shadow-2xl flex flex-col ${
                             isImpostor 
@@ -229,7 +214,6 @@ export default function Game() {
         {/* --- FOOTER: ACCIONES --- */}
         <div className="mt-auto flex flex-col items-center gap-4 w-full max-w-sm">
              
-             {/* BOTÓN SOLO PARA HOST */}
              {isHost && (
                 <button 
                     onClick={handleStartDebate}

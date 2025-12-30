@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Crown, Play, Copy, Check, Share2 } from 'lucide-react'; 
+import { Users, Crown, Play, Copy, Check } from 'lucide-react'; 
 import { Layout, Avatar } from '../components/ui/Layout';
 import socket from '../socket';
 
 export default function Lobby() {
-  // --- LÓGICA DE CONEXIÓN ---
   const params = useParams();
   const roomId = params.roomId || window.location.pathname.split('/').pop();
   
@@ -16,12 +15,16 @@ export default function Lobby() {
   const [players, setPlayers] = useState(state?.players || []);
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-
-  const isHost = state?.isHost || false; 
-  const myNickname = state?.nickname || localStorage.getItem('lastNickname');
   
-  // Guardamos si ya nos unimos para evitar doble emit en modo estricto de React
+  // Guardamos si ya nos unimos para evitar doble emit
   const [joined, setJoined] = useState(false);
+
+  // 1. OBTENER NICKNAME
+  const myNickname = state?.nickname || localStorage.getItem('lastNickname');
+
+  // 2. CALCULAR SI SOY HOST BASADO EN LA LISTA DE JUGADORES (NO EN EL STATE)
+  // Buscamos nuestro usuario en la lista y miramos su propiedad isHost
+  const amIHost = players.find(p => p.name === myNickname)?.isHost || false;
 
   useEffect(() => {
     if (!roomId || !myNickname) {
@@ -29,23 +32,36 @@ export default function Lobby() {
         return;
     }
 
-    // Unirse a la sala si no venimos redirigidos con estado completo o si recargamos
+    // Unirse a la sala
     if (!joined) {
-        // Si ya hay jugadores en el state (venimos de crear sala), no emitimos join de nuevo inmediatamente
-        // Pero para simplificar lógica de reconexión visual:
+        // Solo emitimos join si no venimos de crear la sala (state.players estaría vacío o undefined al entrar por link)
         if (!state?.players) {
             socket.emit('join_room', { 
                 roomCode: roomId, 
                 nickname: myNickname,
-                // Enviamos la configuración del avatar elegida
                 avatarConfig: state?.avatarConfig || {} 
             });
         }
         setJoined(true);
     }
 
-    const handleUpdatePlayers = (updatedPlayers) => setPlayers(updatedPlayers);
-    const handleGameStarted = (gameData) => navigate('/game', { state: { ...gameData, roomId } });
+    const handleUpdatePlayers = (updatedPlayers) => {
+        setPlayers(updatedPlayers);
+    };
+
+    // 3. AL INICIAR JUEGO, PASAMOS EL ESTADO DE HOST RECALCULADO
+    const handleGameStarted = (gameData) => {
+        navigate('/game', { 
+            state: { 
+                ...gameData, 
+                roomId,
+                nickname: myNickname,
+                isHost: amIHost, // Pasamos el valor calculado en tiempo real
+                players: players 
+            } 
+        });
+    };
+
     const handleError = (msg) => {
         setErrorMsg(msg);
         setTimeout(() => navigate('/'), 3000);
@@ -60,7 +76,7 @@ export default function Lobby() {
         socket.off('game_started', handleGameStarted);
         socket.off('error_message', handleError);
     };
-  }, [roomId, myNickname, navigate, state, joined]);
+  }, [roomId, myNickname, navigate, state, joined, amIHost, players]); // Añadido amIHost y players a dependencias
 
   const copyCode = () => {
     navigator.clipboard.writeText(roomId);
@@ -105,11 +121,6 @@ export default function Lobby() {
                         </span>
                     </div>
                 </button>
-                
-                {/* Tooltip móvil */}
-                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-slate-500 text-xs sm:hidden">
-                    Toca para copiar
-                </div>
             </div>
 
             {errorMsg && (
@@ -119,7 +130,7 @@ export default function Lobby() {
             )}
         </div>
 
-        {/* --- LISTA DE JUGADORES (Grid Responsive) --- */}
+        {/* --- LISTA DE JUGADORES --- */}
         <div className="flex-1 bg-slate-800/30 border border-white/5 rounded-3xl p-6 sm:p-8 flex flex-col min-h-[300px]">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
@@ -135,16 +146,12 @@ export default function Lobby() {
                 <AnimatePresence>
                     {players.map((p) => (
                         <motion.div 
-                            key={p.id}
+                            key={p.id || p.name}
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.9 }}
                             className="bg-slate-800 hover:bg-slate-700 border border-white/5 p-3 rounded-xl flex items-center gap-4 transition-colors group relative overflow-hidden"
                         >
-                            {/* CORRECCIÓN AQUÍ: 
-                                Usamos p.avatar.style y p.avatar.seed que vienen del backend.
-                                Si por alguna razón fallan, usamos valores por defecto.
-                            */}
                             <Avatar 
                                 style={p.avatar?.style || 'bottts-neutral'} 
                                 seed={p.avatar?.seed || p.name} 
@@ -154,7 +161,7 @@ export default function Lobby() {
                             
                             <div className="flex flex-col">
                                 <span className="text-white font-bold text-lg leading-tight truncate max-w-[120px] sm:max-w-[150px]">
-                                    {p.name}
+                                    {p.name} {p.name === myNickname && "(Tú)"}
                                 </span>
                                 {p.isHost && (
                                     <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
@@ -162,18 +169,10 @@ export default function Lobby() {
                                     </span>
                                 )}
                             </div>
-
-                            {/* Decoración fondo para el Host */}
-                            {p.isHost && (
-                                <div className="absolute right-0 top-0 p-2 opacity-10">
-                                    <Crown size={40} />
-                                </div>
-                            )}
                         </motion.div>
                     ))}
                 </AnimatePresence>
                 
-                {/* Placeholder Slots */}
                 {Array.from({ length: Math.max(0, 3 - players.length) }).map((_, i) => (
                     <div key={`empty-${i}`} className="border-2 border-dashed border-white/5 rounded-xl p-4 flex items-center justify-center gap-2 text-white/20 h-[74px]">
                         <div className="w-2 h-2 rounded-full bg-white/10 animate-pulse" />
@@ -185,7 +184,7 @@ export default function Lobby() {
 
         {/* --- FOOTER: ACCIONES --- */}
         <div className="pt-2">
-             {isHost ? (
+             {amIHost ? (
                  <div className="flex flex-col items-center gap-3">
                     <button 
                         onClick={handleStartGame}

@@ -2,39 +2,64 @@
 
 export const DICTIONARIES = {
   venezolano: [
-    "Hallaca", "Pan de Jamón", "Patacón", "Cachapa", "Tequeños", 
-    "Arepa Reina Pepiada", "Empanada de Cazón", "Pepito", "Asado Negro",
-    "Chicha", "Malta", "Frescolita", "Encava", "Polar", "Toddy"
+    "Hallaca", "Sifrino", "Patacón",
+    "Cachapa", "Tequeños", "CLAP",
+    "Enchufado", "Pepito", "Saime",
+    "Chicha", "Malta", "Frescolita",
+    "Encava", "Polar", "Toddy", "Maria Corina Machado", 
+    "Diosdado Cabello", "Henrique Capriles"
   ],
+
   animales: [
-    "Panda", "Jirafa", "Elefante", "León", "Tigre", "Delfín",
-    "Tiburón", "Canguro", "Koala", "Pingüino", "Águila", "Lobo"
+    "Panda", "Jirafa", "Elefante",
+    "León", "Tigre", "Delfín",
+    "Tiburón", "Canguro", "Koala",
+    "Pingüino", "Águila", "Lobo"
   ],
+
   cultura_pop: [
-    "Star Wars", "Harry Potter", "Marvel", "DC", "Stranger Things", 
-    "Game of Thrones", "Netflix", "Disney+", "Dragon Ball", "Naruto"
+    "Star Wars", "Harry Potter", "Marvel",
+    "DC", "Stranger Things", "Game of Thrones",
+    "Netflix", "Disney+", "Game of Thrones",
+    "Donald Trump", "Elon Musk", "Sidney Sweeney"
   ],
+
   fiestas: [
-    "Navidad", "Año Nuevo", "Reyes Magos", "San Valentín", "Halloween", 
-    "Carnavales", "Cumpleaños", "Boda", "Graduación"
+    "Navidad", "Año Nuevo", "Reyes Magos",
+    "San Valentín", "Halloween", "Carnavales",
+    "Cumpleaños", "Quinceaños", "Boda",
+    "Graduación", "Baby Shower"
   ],
+
   objetos: [
-    "iPhone", "PlayStation", "Xbox", "Nintendo Switch", "Laptop", 
-    "Audífonos", "Smartwatch", "GoPro", "Tablet"
+    "iPhone", "AirPods", "PlayStation",
+    "Xbox", "Nintendo Switch", "Laptop",
+    "Audífonos Bluetooth", "Smartwatch",
+    "Cámara GoPro", "Tablet", "Kindle"
   ],
+
   comida_internacional: [
-    "Pizza", "Hamburguesa", "Sushi", "Tacos", "Ramen", "Lasagna", 
-    "Paella", "Burrito", "Kebab", "Hot Dog"
+    "Pizza", "Hamburguesa", "Sushi",
+    "Tacos", "Ramen", "Lasagna",
+    "Paella", "Burrito", "Shawarma",
+    "Hot Dog"
   ],
+
   ropa: [
-    "Jeans", "Hoodie", "Chaqueta de Cuero", "Zapatillas Nike", "Vestido", 
-    "Traje", "Gorra", "Lentes de Sol", "Tacones"
+    "Jeans", "Hoodie", "Chaqueta de Cuero",
+    "Franela Oversize", "Zapatillas Nike",
+    "Zapatos Jordan", "Vestido",
+    "Traje", "Gorra", "Lentes de Sol"
   ],
-  dificil: [ 
-    "Hallaca", "Pan de Jamón", "Panda", "Koala", "Oso Polar",
-    "Star Wars", "Star Trek", "Navidad", "Nochebuena"
+
+  dificil: [ // Muy parecidas para confundir al impostor
+    "Hallaca", "Sifrino", "Sidney Sweeney",
+    "Panda", "Koala", "Oso Polar",
+    "Star Wars", "Star Trek", "Guardianes de la Galaxia",
+    "Navidad", "Año Nuevo", "Nochebuena"
   ]
 };
+
 
 export const CATEGORIES_UI = [
   { id: 'venezolano', name: 'Venezolano', icon: '🇻🇪' },

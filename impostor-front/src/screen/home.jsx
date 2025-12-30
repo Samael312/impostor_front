@@ -1,124 +1,111 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Users, ChevronLeft, ChevronRight, Dices, Smartphone } from 'lucide-react';
-import { Layout, Avatar } from '../components/ui/Layout';
-
-// TU LISTA PERSONALIZADA
-const AVATAR_OPTIONS = [
-  { id: 1, style: 'bottts-neutral',    seed: 'Ginger',  name: 'Robo-Zen' },
-  { id: 2, style: 'dylan',             seed: 'Milo',    name: 'El Colega' },
-  { id: 3, style: 'lorelei-neutral',   seed: 'Avery',   name: 'Minimal' },
-  { id: 4, style: 'pixel-art-neutral', seed: 'Zelda',   name: 'Retro' },
-  { id: 5, style: 'thumbs',            seed: 'Buddy',   name: 'El Like' },
-  { id: 6, style: 'dylan',             seed: 'Lucky',   name: 'Tranqui' },
-];
+import { motion } from 'framer-motion';
+import { Users, Globe, Smartphone, ChevronRight } from 'lucide-react';
+import { Layout } from '../components/ui/Layout';
 
 export default function Home() {
-  const [nickname, setNickname] = useState('');
-  const [roomCode, setRoomCode] = useState('');
-  const [currentIndex, setCurrentIndex] = useState(0);
   const navigate = useNavigate();
-
-  const nextAvatar = () => setCurrentIndex((prev) => (prev + 1) % AVATAR_OPTIONS.length);
-  const prevAvatar = () => setCurrentIndex((prev) => (prev - 1 + AVATAR_OPTIONS.length) % AVATAR_OPTIONS.length);
-  
-  const randomize = () => {
-    setCurrentIndex(Math.floor(Math.random() * AVATAR_OPTIONS.length));
-    if (!nickname) {
-        const randomNames = ["Capitán", "Sombra", "Ninja", "Alien"];
-        setNickname(randomNames[Math.floor(Math.random() * randomNames.length)]);
-    }
-  };
-
-  const handleCreate = () => {
-    if (!nickname) return alert("¡Ponte un nombre primero!");
-    
-    // CAMBIO: En lugar de emitir socket, navegamos a la configuración
-    navigate('/create', { 
-        state: { 
-            nickname, 
-            avatarConfig: AVATAR_OPTIONS[currentIndex] 
-        } 
-    });
-  };
-
-  const handleJoin = () => {
-    if (!nickname || !roomCode) return;
-    navigate(`/lobby/${roomCode}`, { state: { nickname, isHost: false, avatarConfig: AVATAR_OPTIONS[currentIndex] } });
-  };
 
   return (
     <Layout>
-      <div className="flex flex-col items-center space-y-5 py-2">
+      <div className="flex flex-col h-full justify-between pt-10 pb-6">
         
-        {/* Título */}
-        <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 3, repeat: Infinity }} className="text-center">
-          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-pink-500 drop-shadow-sm">
+        {/* --- SECCIÓN DEL TÍTULO E ILUSTRACIÓN --- */}
+        <div className="text-center space-y-6">
+          {/* Título */}
+          <h1 className="text-5xl mr-serif font-black text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 via-teal-300 to-cyan-500 drop-shadow-[0_0_15px_rgba(52,211,153,0.4)]">
             IMPOSTOR
           </h1>
-        </motion.div>
 
-        {/* Selector de Avatar */}
-        <div className="relative w-full flex flex-col items-center justify-center space-y-3">
-            <div className="relative flex items-center justify-center w-full">
-                <button onClick={prevAvatar} className="absolute left-0 z-20 p-2 bg-white/10 rounded-full hover:bg-white/20 text-white/70"><ChevronLeft size={24} /></button>
-                <AnimatePresence mode='wait'>
-                <motion.div
-                    key={currentIndex}
-                    initial={{ opacity: 0, scale: 0.5, rotate: -20 }}
-                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                    exit={{ opacity: 0, scale: 0.5, rotate: 20 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    className="relative z-10 py-4"
-                >
-                    <div className="w-32 h-32"> 
-                      <Avatar 
-                        style={AVATAR_OPTIONS[currentIndex].style} 
-                        seed={AVATAR_OPTIONS[currentIndex].seed} 
-                        className="w-full h-full border-4 border-white shadow-2xl" 
-                        bgColor="bg-gradient-to-br from-pink-500/30 to-purple-600/30 border-2 border-white/20"
-                      />
-                    </div>
-                </motion.div>
-                </AnimatePresence>
-                <button onClick={nextAvatar} className="absolute right-0 z-20 p-2 bg-white/10 rounded-full hover:bg-white/20 text-white/70"><ChevronRight size={24} /></button>
-            </div>
-            <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-widest text-white/50">{AVATAR_OPTIONS[currentIndex].name}</span>
-                <button onClick={randomize} className="p-1 bg-white/5 rounded-full hover:bg-yellow-400 hover:text-black transition-colors"><Dices size={14} /></button>
-            </div>
+          {/* NUEVA ILUSTRACIÓN DE IMPOSTOR (SVG Inline) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: 0.2, type: "spring" }}
+            className="w-40 h-40 mx-auto relative drop-shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+          >
+            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+              {/* Capucha/Sombra base */}
+              <path d="M100 20C60 20 30 50 30 90V160C30 175 45 185 60 185H140C155 185 170 175 170 160V90C170 50 140 20 100 20Z" fill="#0f172a"/>
+              {/* Sombra interior rostro */}
+              <path d="M100 30C70 30 50 60 50 100C50 130 70 150 100 150C130 150 150 130 150 100C150 60 130 30 100 30Z" fill="#1e293b"/>
+              {/* Ojos brillantes animados */}
+              <circle cx="75" cy="95" r="8" fill="#34d399" className="animate-pulse">
+                 <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
+              </circle>
+              <circle cx="125" cy="95" r="8" fill="#34d399" className="animate-pulse">
+                 <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" begin="0.3s"/>
+              </circle>
+              {/* Brillo sutil sobre la cabeza */}
+              <path d="M70 25C80 20 120 20 130 25" stroke="url(#head-glow)" strokeWidth="3" strokeLinecap="round"/>
+              <defs>
+                <linearGradient id="head-glow" x1="70" y1="25" x2="130" y2="25" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#34d399" stopOpacity="0"/>
+                  <stop offset="0.5" stopColor="#34d399"/>
+                  <stop offset="1" stopColor="#34d399" stopOpacity="0"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </motion.div>
+
+          {/* Subtítulo */}
+          <p className="text-white/60 text-lg max-w-xs mx-auto leading-relaxed font-bold">
+            Descubre quién miente antes de que sea demasiado tarde.
+          </p>
         </div>
 
-        {/* Inputs Online */}
-        <div className="w-full space-y-2">
-            <input type="text" placeholder="Tu Apodo" value={nickname} className="w-full p-4 rounded-2xl bg-black/20 border-2 border-transparent focus:border-pink-400 text-white text-center font-bold text-xl outline-none placeholder:text-white/20" onChange={e => setNickname(e.target.value)} />
-        </div>
-
-        {/* Botones Online */}
-        <div className="w-full grid grid-cols-2 gap-2">
-           <motion.button whileTap={{ scale: 0.95 }} onClick={handleCreate} className="bg-pink-600 p-4 rounded-xl font-bold flex flex-col items-center justify-center text-xs gap-1 shadow-lg shadow-pink-600/20">
-             <Play size={24} /> ONLINE
-           </motion.button>
-           <div className="flex flex-col gap-2">
-              <input type="text" placeholder="CÓDIGO" className="w-full p-2 rounded-xl bg-black/20 text-center font-bold text-xs outline-none text-white" onChange={e => setRoomCode(e.target.value)} />
-              <motion.button whileTap={{ scale: 0.95 }} onClick={handleJoin} className="bg-white/10 hover:bg-white/20 p-2 rounded-xl font-bold text-xs text-white">UNIRSE</motion.button>
-           </div>
-        </div>
-
-        <div className="w-full h-px bg-white/10 my-2"></div>
-
-        {/* --- NUEVO BOTÓN MODO LOCAL --- */}
-        <motion.button 
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.95 }}
+        {/* --- SECCIÓN DE BOTONES --- */}
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
+          
+          {/* BOTÓN LOCAL */}
+          <motion.button
+            whileTap={{ scale: 0.97 }} // Animación de pulsación
             onClick={() => navigate('/local/setup')}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 p-4 rounded-2xl font-black text-lg shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 relative overflow-hidden group text-white"
-        >   
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-            <Smartphone className="fill-white/20" />
-            MODO LOCAL
-        </motion.button>
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 p-6 rounded-3xl shadow-lg shadow-emerald-500/20 flex items-center justify-between group relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-white/0 transition-colors group-hover:bg-white/10"/>
+            <div className="flex items-center gap-5">
+              <div className="bg-black/20 p-4 rounded-2xl backdrop-blur-sm">
+                <Smartphone size={32} className="text-white" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-2xl font-black text-white mb-1 tracking-wide">LOCAL</h3>
+                <p className="text-emerald-100 text-sm font-bold opacity-80 flex items-center gap-2">
+                  <Users size={14} /> Un solo dispositivo
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={28} className="text-white/50 group-hover:text-white transition-colors group-hover:translate-x-1" />
+          </motion.button>
 
+          {/* BOTÓN ONLINE (Actualizado con la misma animación) */}
+          <motion.button
+            whileTap={{ scale: 0.97 }} 
+            onClick={() => navigate('/online')}
+            className="w-full bg-gradient-to-r from-violet-600 to-indigo-700 p-6 rounded-3xl shadow-lg shadow-indigo-500/20 flex items-center justify-between group relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-white/0 transition-colors group-hover:bg-white/5"/>
+            
+
+            <div className="flex items-center gap-5 opacity-90">
+              <div className="bg-black/20 p-4 rounded-2xl backdrop-blur-sm">
+                <Globe size={32} className="text-indigo-100" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-2xl font-black text-indigo-100 mb-1 tracking-wide">ONLINE</h3>
+                <p className="text-indigo-200 text-sm font-bold opacity-70 flex items-center gap-2">
+                  <Users size={14} /> Multijugador remoto
+                </p>
+              </div>
+            </div>
+             <ChevronRight size={28} className="text-white/50 group-hover:text-white transition-colors group-hover:translate-x-1" />
+          </motion.button>
+        </div>
+
+        {/* Footer sutil */}
+        <div className="text-center text-white/30 text-xs font-bold tracking-widest uppercase py-2">
+          Versión 1.0
+        </div>
       </div>
     </Layout>
   );

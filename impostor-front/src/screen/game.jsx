@@ -2,84 +2,98 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EyeOff, Skull, LogOut, ShieldCheck, HelpCircle, MessageSquare, Users, Home, Settings } from 'lucide-react';
-import { Layout } from '../components/ui/Layout';
+import { Layout, Avatar } from '../components/ui/Layout'; 
 import socket from '../socket';
 
 export default function Game() {
   const { state } = useLocation();
   const navigate = useNavigate();
   
+  
   const [cardFlipped, setCardFlipped] = useState(false);
-  const [gamePhase, setGamePhase] = useState('reveal'); 
+  const [gamePhase, setGamePhase] = useState('reveal'); // 'reveal', 'debate', 'results'
+  
+  // Estados de votación
+  const [myVote, setMyVote] = useState(null);
+  const [votingResults, setVotingResults] = useState(null);
 
   // --- PROTECCIÓN ---
   useEffect(() => {
     if (!state?.role) navigate('/');
   }, [state, navigate]);
 
-  // --- SOCKETS Y EVENTOS ---
+  // --- LÓGICA DE SOCKETS ---
   useEffect(() => {
-    const handleDebateStarted = () => setGamePhase('debate');
+    const handleDebateStarted = () => {
+        setGamePhase('debate');
+        setMyVote(null);
+        setVotingResults(null);
+    };
     
+    // REINICIO DE PARTIDA
     const handleNewGame = (newGameData) => {
-        console.log("🔄 Nueva ronda recibida:", newGameData);
+        console.log("🔄 Nueva ronda:", newGameData);
+        setGamePhase('reveal');
+        setCardFlipped(false);
+        setMyVote(null);
+        setVotingResults(null);
         
-        // 1. Navegar para actualizar el estado global (location.state)
-        // Esto actualizará 'state.roundId', lo que forzará el remount del Layout
         navigate('/game', { 
             state: { 
                 ...newGameData, 
-                roomId: state.roomId,
+                roomId: state.roomId, 
                 nickname: state.nickname,
                 isHost: state.isHost,
                 players: newGameData.players || state.players 
             },
             replace: true 
         });
+    };
 
-        // 2. Forzar reseteo local (por seguridad)
-        setGamePhase('reveal');
-        setCardFlipped(false);
+    // RESULTADOS DE VOTACIÓN
+    const handleResults = (results) => {
+        setVotingResults(results);
+        setGamePhase('results');
     };
 
     const handleBackToLobby = () => {
         navigate(`/lobby/${state.roomId}`, { 
-            state: { 
-                nickname: state.nickname,
-                isHost: state.isHost,
-                players: state.players 
-            } 
+            state: { nickname: state.nickname, isHost: state.isHost, players: state.players } 
         });
     };
 
     socket.on('debate_started', handleDebateStarted);
     socket.on('game_started', handleNewGame); 
+    socket.on('voting_results', handleResults);
     socket.on('return_to_lobby', handleBackToLobby);
 
     return () => {
         socket.off('debate_started', handleDebateStarted);
         socket.off('game_started', handleNewGame);
+        socket.off('voting_results', handleResults);
         socket.off('return_to_lobby', handleBackToLobby);
     };
-  }, [navigate, state]); // Dependencias críticas
+  }, [navigate, state]);
 
   if (!state) return null;
 
-  const { role, location: secretWord, roomId, isHost, roundId } = state;
+  const { role, location: secretWord, roomId, isHost, roundId, players } = state;
   const isImpostor = role === 'impostor';
 
+  // --- ACCIONES ---
   const handleStartDebate = () => {
       socket.emit('start_debate', { roomCode: roomId });
   };
 
+  const handleVote = (playerId) => {
+      if (myVote) return; 
+      setMyVote(playerId);
+      socket.emit('vote_player', { roomCode: roomId, votedId: playerId });
+  };
+
   const handleConfigureNewRound = () => {
       navigate('/game/setup', { 
-          state: { 
-              roomId: roomId,
-              nickname: state.nickname,
-              isHost: true,
-              players: state.players 
-          } 
+          state: { roomId, nickname: state.nickname, isHost: true, players } 
       });
   };
 
@@ -90,58 +104,119 @@ export default function Game() {
      }
   };
 
-  // ---------------- RENDERIZADO ----------------
-  // Usamos 'key={roundId}' para obligar a React a destruir y recrear 
-  // todo el contenido cuando empieza una nueva ronda.
+  // --- RENDER ---
   return (
-    <Layout key={roundId || 'initial'}> 
+    <Layout key={roundId || 'init'}> 
       
-      {/* --- FASE 2: DEBATE --- */}
-      {gamePhase === 'debate' ? (
-        <div className="h-full flex flex-col items-center justify-center text-center space-y-8 animate-in zoom-in duration-500">
-            <div className="space-y-4">
-                <motion.div 
-                    initial={{ scale: 0 }} animate={{ scale: 1 }}
-                    className="bg-orange-500/20 p-8 rounded-full border-4 border-orange-500/50 inline-block mb-4 shadow-[0_0_40px_rgba(249,115,22,0.3)]"
-                >
-                        <Users size={64} className="text-orange-400 animate-bounce" />
-                </motion.div>
+      {/* === FASE 3: RESULTADOS === */}
+      {gamePhase === 'results' && votingResults ? (
+         <div className="h-full flex flex-col items-center justify-center text-center space-y-6 animate-in zoom-in duration-500">
+            
+            <div className="space-y-2">
+                {votingResults.impostorCaught ? (
+                    <div className="bg-emerald-500/20 p-6 rounded-full inline-block border-4 border-emerald-500">
+                        <ShieldCheck size={64} className="text-emerald-400" />
+                    </div>
+                ) : (
+                    <div className="bg-red-500/20 p-6 rounded-full inline-block border-4 border-red-500">
+                        <Skull size={64} className="text-red-400" />
+                    </div>
+                )}
                 
-                <div>
-                    <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter drop-shadow-lg">
-                        Hora de Debatir
-                    </h2>
-                    <div className="h-1 w-24 bg-orange-500 mx-auto my-4 rounded-full"/>
-                </div>
+                <h2 className={`text-4xl font-black uppercase ${votingResults.impostorCaught ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {votingResults.impostorCaught ? '¡VICTORIA!' : '¡DERROTA!'}
+                </h2>
                 
-                <p className="text-orange-100/80 text-lg max-w-sm mx-auto font-medium leading-relaxed">
-                    Discutan entre ustedes.<br/>
-                    <span className="text-white font-bold">¿Quién es el impostor?</span>
+                <p className="text-white/80 text-lg">
+                    {votingResults.isTie 
+                        ? "Empate. Nadie fue expulsado." 
+                        : <>Expulsado: <span className="font-bold text-white">{votingResults.mostVotedPlayer?.name}</span></>
+                    }
                 </p>
             </div>
 
-            <div className="w-full max-w-sm space-y-3 pt-8">
+            <div className="bg-slate-800/50 p-6 rounded-2xl border border-white/10 w-full max-w-sm">
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">LOS IMPOSTORES ERAN</p>
+                <div className="flex flex-wrap justify-center gap-4">
+                    {votingResults.impostors.map(imp => (
+                        <div key={imp.id} className="flex flex-col items-center">
+                            <Avatar style={imp.avatar?.style} seed={imp.avatar?.seed} className="w-16 h-16 border-2 border-red-500 rounded-full bg-slate-900"/>
+                            <span className="text-white font-bold mt-2">{imp.name}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="w-full max-w-sm space-y-3 pt-4">
                 {isHost && (
-                    <button 
-                        onClick={handleConfigureNewRound}
-                        className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all"
-                    >
-                        <Settings size={24} className="animate-spin-slow" /> 
-                        CONFIGURAR NUEVA RONDA
+                    <button onClick={handleConfigureNewRound} className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-black py-4 rounded-xl shadow-lg flex items-center justify-center gap-2">
+                        <Settings size={24} /> NUEVA RONDA
                     </button>
                 )}
-                <button 
-                    onClick={handleExit}
-                    className="w-full bg-slate-800 hover:bg-slate-700 active:scale-95 border border-white/10 text-slate-300 font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all"
-                >
-                    <Home size={20}/> VOLVER AL INICIO
+                <button onClick={handleExit} className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-4 rounded-xl flex items-center justify-center gap-2">
+                    <Home size={20}/> SALIR
                 </button>
             </div>
+         </div>
+
+      ) : gamePhase === 'debate' ? (
+
+      /* === FASE 2: VOTACIÓN === */
+        <div className="h-full flex flex-col w-full max-w-4xl mx-auto">
+            <div className="text-center py-4">
+                <h2 className="text-3xl font-black text-white uppercase drop-shadow-lg flex items-center justify-center gap-3">
+                    <Users className="text-orange-400" /> VOTACIÓN
+                </h2>
+                <p className="text-orange-100/80 text-sm font-medium">
+                    {myVote ? "Esperando resultados..." : "Toca para expulsar"}
+                </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pb-20">
+                    {players.map(p => {
+                        const isSelected = myVote === p.id;
+                        return (
+                            <motion.button
+                                key={p.id}
+                                disabled={!!myVote}
+                                onClick={() => handleVote(p.id)}
+                                whileTap={{ scale: 0.95 }}
+                                className={`relative p-4 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${
+                                    isSelected 
+                                    ? 'bg-red-500/20 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]' 
+                                    : 'bg-slate-800 border-slate-700 hover:border-slate-500'
+                                } ${!!myVote && !isSelected ? 'opacity-50 grayscale' : 'opacity-100'}`}
+                            >
+                                <Avatar style={p.avatar?.style} seed={p.avatar?.seed || p.name} className="w-16 h-16 bg-slate-900 rounded-full" />
+                                <div className="text-center">
+                                    <span className="text-white font-bold block truncate max-w-[100px]">{p.name}</span>
+                                    {isSelected && <span className="text-[10px] text-red-400 font-bold uppercase tracking-widest">VOTADO</span>}
+                                </div>
+                                {isSelected && (
+                                    <div className="absolute top-2 right-2 bg-red-500 rounded-full p-1">
+                                        <Skull size={12} className="text-white" />
+                                    </div>
+                                )}
+                            </motion.button>
+                        );
+                    })}
+                </div>
+            </div>
+            
+            {myVote && (
+                <div className="absolute bottom-20 left-0 right-0 flex justify-center">
+                    <div className="bg-slate-900/90 border border-white/10 backdrop-blur-md px-6 py-3 rounded-full flex items-center gap-3 shadow-xl animate-pulse">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full animate-ping" />
+                        <span className="text-white text-sm font-bold">Esperando votos...</span>
+                    </div>
+                </div>
+            )}
         </div>
 
       ) : (
 
-      /* --- FASE 1: REVELACIÓN (DEFAULT) --- */
+      /* === FASE 1: REVELACIÓN === */
       <div className="flex flex-col items-center justify-center min-h-[80vh] w-full max-w-2xl mx-auto gap-8 py-6">
         
         <div className="flex flex-col items-center space-y-3 animate-in fade-in slide-in-from-top-4 duration-700">

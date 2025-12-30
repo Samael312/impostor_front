@@ -32,18 +32,11 @@ export default function Lobby() {
         return;
     }
 
-    // Unirse a la sala
-    if (!joined) {
-        // Solo emitimos join si no venimos de crear la sala (state.players estaría vacío o undefined al entrar por link)
-        if (!state?.players) {
-            socket.emit('join_room', { 
-                roomCode: roomId, 
-                nickname: myNickname,
-                avatarConfig: state?.avatarConfig || {} 
-            });
-        }
-        setJoined(true);
-    }
+    socket.emit('join_room', { 
+        roomCode: roomId, 
+        nickname: myNickname,
+        avatarConfig: state?.avatarConfig 
+    });
 
     const handleUpdatePlayers = (updatedPlayers) => {
         setPlayers(updatedPlayers);

@@ -12,17 +12,20 @@ export default function Game() {
   const [cardFlipped, setCardFlipped] = useState(false);
   const [gamePhase, setGamePhase] = useState('reveal'); 
 
+  // --- PROTECCIÓN ---
   useEffect(() => {
     if (!state?.role) navigate('/');
   }, [state, navigate]);
 
-  // --- LÓGICA DE SOCKETS ---
+  // --- SOCKETS Y EVENTOS ---
   useEffect(() => {
     const handleDebateStarted = () => setGamePhase('debate');
     
-    // CORRECCIÓN: Listener para detectar NUEVA PARTIDA (Reinicio)
     const handleNewGame = (newGameData) => {
-        // Forzamos la navegación a la misma ruta pero con el nuevo estado
+        console.log("🔄 Nueva ronda recibida:", newGameData);
+        
+        // 1. Navegar para actualizar el estado global (location.state)
+        // Esto actualizará 'state.roundId', lo que forzará el remount del Layout
         navigate('/game', { 
             state: { 
                 ...newGameData, 
@@ -31,9 +34,10 @@ export default function Game() {
                 isHost: state.isHost,
                 players: newGameData.players || state.players 
             },
-            replace: true // Importante para reemplazar el historial y recargar
+            replace: true 
         });
-        // Reiniciamos estados locales visuales
+
+        // 2. Forzar reseteo local (por seguridad)
         setGamePhase('reveal');
         setCardFlipped(false);
     };
@@ -49,19 +53,19 @@ export default function Game() {
     };
 
     socket.on('debate_started', handleDebateStarted);
-    socket.on('game_started', handleNewGame); // <--- ESCUCHAR NUEVA PARTIDA
+    socket.on('game_started', handleNewGame); 
     socket.on('return_to_lobby', handleBackToLobby);
 
     return () => {
         socket.off('debate_started', handleDebateStarted);
-        socket.off('game_started', handleNewGame); // <--- LIMPIAR LISTENER
+        socket.off('game_started', handleNewGame);
         socket.off('return_to_lobby', handleBackToLobby);
     };
-  }, [navigate, state]);
+  }, [navigate, state]); // Dependencias críticas
 
   if (!state) return null;
 
-  const { role, location: secretWord, roomId, isHost } = state;
+  const { role, location: secretWord, roomId, isHost, roundId } = state;
   const isImpostor = role === 'impostor';
 
   const handleStartDebate = () => {
@@ -86,59 +90,58 @@ export default function Game() {
      }
   };
 
-  // --- FASE 2: DEBATE ---
-  if (gamePhase === 'debate') {
-    return (
-        <Layout>
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-8 animate-in zoom-in duration-500">
-                <div className="space-y-4">
-                    <motion.div 
-                        initial={{ scale: 0 }} animate={{ scale: 1 }}
-                        className="bg-orange-500/20 p-8 rounded-full border-4 border-orange-500/50 inline-block mb-4 shadow-[0_0_40px_rgba(249,115,22,0.3)]"
-                    >
-                         <Users size={64} className="text-orange-400 animate-bounce" />
-                    </motion.div>
-                    
-                    <div>
-                        <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter drop-shadow-lg">
-                            Hora de Debatir
-                        </h2>
-                        <div className="h-1 w-24 bg-orange-500 mx-auto my-4 rounded-full"/>
-                    </div>
-                    
-                    <p className="text-orange-100/80 text-lg max-w-sm mx-auto font-medium leading-relaxed">
-                        Discutan entre ustedes.<br/>
-                        <span className="text-white font-bold">¿Quién es el impostor?</span>
-                    </p>
-                </div>
-
-                <div className="w-full max-w-sm space-y-3 pt-8">
-                    {/* BOTÓN SOLO PARA HOST: IR A SETUP */}
-                    {isHost && (
-                        <button 
-                            onClick={handleConfigureNewRound}
-                            className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all"
-                        >
-                            <Settings size={24} className="animate-spin-slow" /> 
-                            CONFIGURAR NUEVA RONDA
-                        </button>
-                    )}
-
-                    <button 
-                        onClick={handleExit}
-                        className="w-full bg-slate-800 hover:bg-slate-700 active:scale-95 border border-white/10 text-slate-300 font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all"
-                    >
-                        <Home size={20}/> VOLVER AL INICIO
-                    </button>
-                </div>
-            </div>
-        </Layout>
-    );
-  }
-
-  // --- FASE 1: REVELACIÓN DE CARTA ---
+  // ---------------- RENDERIZADO ----------------
+  // Usamos 'key={roundId}' para obligar a React a destruir y recrear 
+  // todo el contenido cuando empieza una nueva ronda.
   return (
-    <Layout>
+    <Layout key={roundId || 'initial'}> 
+      
+      {/* --- FASE 2: DEBATE --- */}
+      {gamePhase === 'debate' ? (
+        <div className="h-full flex flex-col items-center justify-center text-center space-y-8 animate-in zoom-in duration-500">
+            <div className="space-y-4">
+                <motion.div 
+                    initial={{ scale: 0 }} animate={{ scale: 1 }}
+                    className="bg-orange-500/20 p-8 rounded-full border-4 border-orange-500/50 inline-block mb-4 shadow-[0_0_40px_rgba(249,115,22,0.3)]"
+                >
+                        <Users size={64} className="text-orange-400 animate-bounce" />
+                </motion.div>
+                
+                <div>
+                    <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter drop-shadow-lg">
+                        Hora de Debatir
+                    </h2>
+                    <div className="h-1 w-24 bg-orange-500 mx-auto my-4 rounded-full"/>
+                </div>
+                
+                <p className="text-orange-100/80 text-lg max-w-sm mx-auto font-medium leading-relaxed">
+                    Discutan entre ustedes.<br/>
+                    <span className="text-white font-bold">¿Quién es el impostor?</span>
+                </p>
+            </div>
+
+            <div className="w-full max-w-sm space-y-3 pt-8">
+                {isHost && (
+                    <button 
+                        onClick={handleConfigureNewRound}
+                        className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all"
+                    >
+                        <Settings size={24} className="animate-spin-slow" /> 
+                        CONFIGURAR NUEVA RONDA
+                    </button>
+                )}
+                <button 
+                    onClick={handleExit}
+                    className="w-full bg-slate-800 hover:bg-slate-700 active:scale-95 border border-white/10 text-slate-300 font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all"
+                >
+                    <Home size={20}/> VOLVER AL INICIO
+                </button>
+            </div>
+        </div>
+
+      ) : (
+
+      /* --- FASE 1: REVELACIÓN (DEFAULT) --- */
       <div className="flex flex-col items-center justify-center min-h-[80vh] w-full max-w-2xl mx-auto gap-8 py-6">
         
         <div className="flex flex-col items-center space-y-3 animate-in fade-in slide-in-from-top-4 duration-700">
@@ -217,23 +220,14 @@ export default function Game() {
                                     {isImpostor ? "¿Cuál es la palabra?" : secretWord}
                                 </p>
                             </div>
-                            <div className="mt-6 bg-black/10 rounded-lg p-3 border border-white/5">
-                                <p className="text-xs font-bold text-white/90 leading-relaxed">
-                                    {isImpostor 
-                                        ? "Escucha, deduce y finge. ¡Que no sepan que no sabes la palabra!" 
-                                        : "Da una pista sutil sobre la palabra, pero no seas obvio o el Impostor lo sabrá."
-                                    }
-                                </p>
-                            </div>
                         </div>
                     </div>
                 </motion.div>
             </motion.div>
         </div>
 
-        {/* --- FOOTER: ACCIONES --- */}
+        {/* --- FOOTER --- */}
         <div className="mt-auto flex flex-col items-center gap-4 w-full max-w-sm">
-             
              {isHost && (
                 <button 
                     onClick={handleStartDebate}
@@ -243,7 +237,6 @@ export default function Game() {
                     INICIAR DEBATE
                 </button>
              )}
-
              <button 
                 onClick={handleExit}
                 className="flex items-center gap-2 text-slate-500 hover:text-red-400 transition-colors px-4 py-2 rounded-lg hover:bg-white/5 text-sm font-bold"
@@ -251,8 +244,8 @@ export default function Game() {
                 <LogOut size={16} /> Salir de la partida
              </button>
         </div>
-
       </div>
+      )}
 
       <style>{`
         .perspective-1000 { perspective: 1000px; }

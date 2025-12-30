@@ -3,12 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, LogOut, AlertTriangle } from 'lucide-react';
 
-// --- COMPONENTE AVATAR (Igual) ---
+// --- COMPONENTE AVATAR (Sin cambios) ---
 export const Avatar = ({ 
   style = 'bottts', 
   seed = 'Felix', 
   className = "w-16 h-16",
-  bgColor = "bg-white/10" // Agregué prop para flexibilidad
+  bgColor = "bg-white/10" 
 }) => {
   const src = `https://api.dicebear.com/9.x/${style}/svg?seed=${seed}&backgroundColor=4ABCE8,c0aede,d1d4f9,ffdfbf,ffd5dc`;
   return (
@@ -41,10 +41,11 @@ export const Layout = ({ children }) => {
   };
 
   return (
-    // CAMBIO 1: h-[100dvh] asegura que se ajuste a la pantalla real del móvil (sin que la barra de url tape nada)
-    <div className="h-[100dvh] w-full flex items-center justify-center p-4 relative overflow-hidden bg-slate-900">
+    // CAMBIO 1: Reduje el padding externo (p-2 en vez de p-4).
+    // En móviles (pantalla pequeña) el borde azul será muy fino para dar más espacio al juego.
+    <div className="h-[100dvh] w-full flex items-center justify-center p-2 sm:p-4 relative overflow-hidden bg-slate-900">
       
-      {/* Fondo Animado (Sin cambios, funciona bien) */}
+      {/* Fondo Animado */}
       <motion.div 
         animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0] }}
         transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
@@ -56,20 +57,20 @@ export const Layout = ({ children }) => {
         className="absolute bottom-[-20%] right-[-20%] w-[500px] h-[500px] bg-blue-600/30 rounded-full blur-[100px]"
       />
 
-      {/* CAMBIO 2: CONTENEDOR DE TARJETA
-         - h-full: Ocupa todo el alto disponible dentro del padding.
-         - max-h-[900px]: En monitores grandes, no se estira infinitamente hacia arriba.
-         - flex flex-col: Vital para que el scroll interno funcione.
+      {/* CAMBIO 2: Tarjeta Principal
+          - w-full: Ocupa todo el ancho posible.
+          - max-w-lg: Aumenté un poco el ancho máximo en PC (de md a lg) por si quieres más aire.
+          - rounded-xl: Bordes un poco menos redondos en móvil para ganar esquinas útiles.
       */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md h-full max-h-[850px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl z-10 relative flex flex-col overflow-hidden"
+        className="w-full max-w-lg h-full max-h-[900px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-[2rem] shadow-2xl z-10 relative flex flex-col overflow-hidden"
       >
         
         {/* HEADER FLOTANTE */}
         {!isHome && (
-          <div className="absolute top-4 right-4 z-20"> {/* Cambié a Right para consistencia con UI móvil estándar */}
+          <div className="absolute top-3 right-3 z-20"> 
             <button 
               onClick={handleBack}
               className="p-2 bg-black/20 hover:bg-black/40 rounded-full text-white/70 hover:text-white transition-all backdrop-blur-md border border-white/5"
@@ -79,18 +80,18 @@ export const Layout = ({ children }) => {
           </div>
         )}
 
-        {/* CAMBIO 3: ÁREA DE SCROLL
-           - flex-1: Ocupa todo el espacio restante.
-           - overflow-y-auto: El scroll ocurre AQUÍ dentro, no en toda la página.
-           - p-6: Padding interno.
+        {/* CAMBIO 3: Padding Interno
+            - p-4: En móvil, el relleno interno es menor.
+            - sm:p-6: En PC, vuelve a ser espacioso.
+            Esto regala unos 16px extra de ancho a los botones e inputs.
         */}
-        <div className="flex-1 w-full overflow-y-auto overflow-x-hidden custom-scrollbar p-6">
+        <div className="flex-1 w-full overflow-y-auto overflow-x-hidden custom-scrollbar p-4 sm:p-6">
           {children}
         </div>
 
       </motion.div>
 
-      {/* --- MODAL (Responsive tweaks) --- */}
+      {/* --- MODAL (Sin cambios funcionales, solo ajustes visuales menores) --- */}
       <AnimatePresence>
         {showExitModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -99,30 +100,29 @@ export const Layout = ({ children }) => {
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
               onClick={() => setShowExitModal(false)}
             />
-            {/* max-w-[90%] asegura que en móviles muy estrechos no toque los bordes */}
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-[#1e1e2e] w-full max-w-xs max-w-[90%] rounded-3xl border border-white/10 shadow-2xl relative z-50 p-6 text-center"
+              className="bg-[#1e1e2e] w-full max-w-[90%] sm:max-w-xs rounded-2xl border border-white/10 shadow-2xl relative z-50 p-6 text-center"
             >
-              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
-                <AlertTriangle size={32} />
+              <div className="w-14 h-14 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                <AlertTriangle size={28} />
               </div>
               
-              <h3 className="text-xl font-black text-white mb-2">¿Abandonar?</h3>
+              <h3 className="text-xl font-bold text-white mb-2">¿Abandonar?</h3>
               <p className="text-white/50 text-sm mb-6 leading-relaxed">
-                Si sales ahora, perderás tu progreso y desconectarás de la sala.
+                Perderás tu progreso actual.
               </p>
               
               <div className="grid grid-cols-2 gap-3">
                 <button 
                   onClick={() => setShowExitModal(false)}
-                  className="p-3 rounded-xl bg-white/5 font-bold hover:bg-white/10 transition text-sm"
+                  className="p-3 rounded-xl bg-white/5 font-semibold hover:bg-white/10 transition text-sm text-white"
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={confirmExit}
-                  className="p-3 rounded-xl bg-red-500 font-bold hover:bg-red-600 transition shadow-lg shadow-red-500/20 text-sm"
+                  className="p-3 rounded-xl bg-red-500 font-semibold hover:bg-red-600 transition shadow-lg shadow-red-500/20 text-sm text-white"
                 >
                   Salir
                 </button>

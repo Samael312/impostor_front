@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { EyeOff, Skull, LogOut, ShieldCheck, HelpCircle, MessageSquare, Users, Home, RefreshCw } from 'lucide-react';
+import { EyeOff, Skull, LogOut, ShieldCheck, HelpCircle, MessageSquare, Users, Home, Settings } from 'lucide-react';
 import { Layout } from '../components/ui/Layout';
 import socket from '../socket';
 
@@ -12,6 +12,7 @@ export default function Game() {
   const [cardFlipped, setCardFlipped] = useState(false);
   const [gamePhase, setGamePhase] = useState('reveal'); 
 
+  // Protección: Si no hay rol, volvemos al inicio
   useEffect(() => {
     if (!state?.role) navigate('/');
   }, [state, navigate]);
@@ -20,20 +21,19 @@ export default function Game() {
   useEffect(() => {
     const handleDebateStarted = () => setGamePhase('debate');
     
-    // ESCUCHAMOS SI EL HOST RESETEA LA PARTIDA
+    // Mantenemos esto por seguridad, por si el servidor fuerza volver al lobby
     const handleBackToLobby = () => {
-        // Volvemos al lobby con el mismo roomId y nuestro nickname
         navigate(`/lobby/${state.roomId}`, { 
             state: { 
-                nickname: state.nickname, // Importante mantener el nickname
+                nickname: state.nickname,
                 isHost: state.isHost,
-                players: state.players // Opcional, el lobby se actualizará solo
+                players: state.players 
             } 
         });
     };
 
     socket.on('debate_started', handleDebateStarted);
-    socket.on('return_to_lobby', handleBackToLobby); // Nuevo evento
+    socket.on('return_to_lobby', handleBackToLobby);
 
     return () => {
         socket.off('debate_started', handleDebateStarted);
@@ -46,24 +46,34 @@ export default function Game() {
   const { role, location: secretWord, roomId, isHost } = state;
   const isImpostor = role === 'impostor';
 
+  // Iniciar la fase de votación/debate (visual)
   const handleStartDebate = () => {
       socket.emit('start_debate', { roomCode: roomId });
   };
 
-  // NUEVA FUNCIÓN: RESETEAR PARTIDA
-  const handleResetGame = () => {
-      // Emitimos al servidor que queremos volver al lobby
-      socket.emit('reset_game', { roomCode: roomId });
+  // --- NUEVA LÓGICA: IR A CONFIGURAR SIGUIENTE RONDA ---
+  const handleConfigureNewRound = () => {
+      // En lugar de resetear, vamos a la pantalla de Setup manteniendo la room
+      navigate('/game/setup', { 
+          state: { 
+              roomId: roomId,
+              nickname: state.nickname,
+              isHost: true,
+              players: state.players // Pasamos los jugadores actuales para calcular límites
+          } 
+      });
   };
 
   const handleExit = () => {
-     if (window.confirm("¿Seguro que quieres salir?")) {
+     if (window.confirm("¿Seguro que quieres salir de la partida?")) {
         socket.emit('disconnect_game'); 
         navigate('/');
      }
   };
 
-  // --- FASE DE DEBATE ---
+  // ----------------------------------------------------
+  // FASE 2: DEBATE
+  // ----------------------------------------------------
   if (gamePhase === 'debate') {
     return (
         <Layout>
@@ -94,14 +104,14 @@ export default function Game() {
                 {/* BOTONES DE ACCIÓN */}
                 <div className="w-full max-w-sm space-y-3 pt-8">
                     
-                    {/* BOTÓN SOLO PARA HOST: REPETIR PARTIDA */}
+                    {/* BOTÓN SOLO PARA HOST: IR A SETUP */}
                     {isHost && (
                         <button 
-                            onClick={handleResetGame}
+                            onClick={handleConfigureNewRound}
                             className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all"
                         >
-                            <RefreshCw size={24} className="animate-spin-slow" /> 
-                            CONFIGURAR NUEVA PARTIDA
+                            <Settings size={24} className="animate-spin-slow" /> 
+                            CONFIGURAR NUEVA RONDA
                         </button>
                     )}
 
@@ -118,7 +128,7 @@ export default function Game() {
   }
 
   // ----------------------------------------------------
-  // VISTA 1: REVELACIÓN DE CARTA (Default)
+  // FASE 1: REVELACIÓN DE CARTA (Default)
   // ----------------------------------------------------
   return (
     <Layout>

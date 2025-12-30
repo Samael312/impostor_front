@@ -1,21 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Crown, Play, Copy, Check, Settings, Minus, Plus, Grid } from 'lucide-react'; 
+import { Users, Crown, Play, Copy, Check, Share2 } from 'lucide-react'; 
 import { Layout, Avatar } from '../components/ui/Layout';
 import socket from '../socket';
 
-// Opciones de configuración
-const CATEGORIES = [
-    { id: 'all', name: 'Aleatorio', icon: '🎲' },
-    { id: 'lugares', name: 'Lugares', icon: '🌍' },
-    { id: 'comida', name: 'Comida', icon: '🍕' },
-    { id: 'animales', name: 'Animales', icon: '🦁' },
-];
-
 export default function Lobby() {
+  // --- LÓGICA DE CONEXIÓN ---
   const params = useParams();
   const roomId = params.roomId || window.location.pathname.split('/').pop();
+  
   const { state } = useLocation();
   const navigate = useNavigate();
 
@@ -23,12 +17,10 @@ export default function Lobby() {
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // --- ESTADOS DE CONFIGURACIÓN (Solo para Host) ---
-  const [impostorCount, setImpostorCount] = useState(1);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-
   const isHost = state?.isHost || false; 
   const myNickname = state?.nickname || localStorage.getItem('lastNickname');
+  
+  // Guardamos si ya nos unimos para evitar doble emit en modo estricto de React
   const [joined, setJoined] = useState(false);
 
   useEffect(() => {
@@ -37,21 +29,23 @@ export default function Lobby() {
         return;
     }
 
+    // Unirse a la sala si no venimos redirigidos con estado completo o si recargamos
     if (!joined) {
-        // Solo emitimos join si no venimos de un reset (si players está vacío o null)
-        // Ojo: Si vienes de Game.jsx con state.players, quizás no necesites emitir join_room, 
-        // pero para asegurar la reconexión de socket es mejor emitirlo o tener un evento 'rejoin'.
-        // Para simplificar, asumimos que el backend maneja re-joins idempotentes.
-        socket.emit('join_room', { 
-            roomCode: roomId, 
-            nickname: myNickname,
-            avatarConfig: state?.avatarConfig || {} 
-        });
+        // Si ya hay jugadores en el state (venimos de crear sala), no emitimos join de nuevo inmediatamente
+        // Pero para simplificar lógica de reconexión visual:
+        if (!state?.players) {
+            socket.emit('join_room', { 
+                roomCode: roomId, 
+                nickname: myNickname,
+                // Enviamos la configuración del avatar elegida
+                avatarConfig: state?.avatarConfig || {} 
+            });
+        }
         setJoined(true);
     }
 
     const handleUpdatePlayers = (updatedPlayers) => setPlayers(updatedPlayers);
-    const handleGameStarted = (gameData) => navigate('/game', { state: { ...gameData, roomId, isHost } }); // Pasamos isHost
+    const handleGameStarted = (gameData) => navigate('/game', { state: { ...gameData, roomId } });
     const handleError = (msg) => {
         setErrorMsg(msg);
         setTimeout(() => navigate('/'), 3000);
@@ -66,7 +60,7 @@ export default function Lobby() {
         socket.off('game_started', handleGameStarted);
         socket.off('error_message', handleError);
     };
-  }, [roomId, myNickname, navigate, state, joined, isHost]);
+  }, [roomId, myNickname, navigate, state, joined]);
 
   const copyCode = () => {
     navigator.clipboard.writeText(roomId);
@@ -75,125 +69,154 @@ export default function Lobby() {
   };
 
   const handleStartGame = () => {
-    // ENVIAMOS LA NUEVA CONFIGURACIÓN AL INICIAR
-    socket.emit('start_game', { 
-        roomCode: roomId,
-        config: {
-            impostors: impostorCount,
-            category: selectedCategory
-        }
-    });
+    socket.emit('start_game', { roomCode: roomId });
   };
 
   return (
     <Layout>
-      <div className="flex flex-col h-full w-full max-w-4xl mx-auto gap-6 sm:gap-8">
+      <div className="flex flex-col h-full w-full max-w-4xl mx-auto gap-8">
         
-        {/* HEADER CÓDIGO (Igual que antes) */}
+        {/* --- HEADER: CÓDIGO DE SALA --- */}
         <div className="text-center space-y-4">
-            <h2 className="text-slate-400 text-sm font-bold uppercase tracking-widest">SALA DE ESPERA</h2>
+            <h2 className="text-slate-400 text-sm font-bold uppercase tracking-widest">
+                SALA DE ESPERA
+            </h2>
+            
             <div className="relative group inline-block">
-                <button onClick={copyCode} className="bg-slate-800/50 hover:bg-slate-800 border-2 border-slate-700 hover:border-indigo-500/50 rounded-2xl px-6 py-4 sm:px-8 sm:py-5 flex items-center gap-4 sm:gap-6 mx-auto transition-all shadow-xl">
+                <button 
+                    onClick={copyCode}
+                    className="bg-slate-800/50 hover:bg-slate-800 border-2 border-slate-700 hover:border-indigo-500/50 rounded-2xl px-8 py-5 flex items-center gap-6 mx-auto transition-all duration-300 shadow-xl"
+                >
                     <div className="text-left">
-                        <p className="text-[10px] sm:text-xs text-slate-500 font-bold mb-1">CÓDIGO</p>
-                        <span className="text-4xl sm:text-6xl font-black text-white tracking-widest font-mono">{roomId}</span>
+                        <p className="text-xs text-slate-500 font-bold mb-1">CÓDIGO DE ACCESO</p>
+                        <span className="text-5xl sm:text-6xl font-black text-white tracking-widest font-mono">
+                            {roomId}
+                        </span>
                     </div>
-                    <div className="h-10 w-px bg-white/10" />
-                    <div className="flex flex-col items-center justify-center gap-1 min-w-[2rem]">
-                        {copied ? <Check className="text-emerald-400" size={24}/> : <Copy className="text-slate-400 group-hover:text-white transition-colors" size={24}/>}
+                    <div className="h-12 w-px bg-white/10 mx-2" />
+                    <div className="flex flex-col items-center justify-center gap-1 min-w-[3rem]">
+                        {copied ? (
+                            <Check className="text-emerald-400 w-8 h-8" />
+                        ) : (
+                            <Copy className="text-slate-400 group-hover:text-white w-8 h-8 transition-colors" />
+                        )}
+                        <span className="text-[10px] font-bold text-slate-500 group-hover:text-white/80">
+                            {copied ? '¡LISTO!' : 'COPIAR'}
+                        </span>
                     </div>
                 </button>
+                
+                {/* Tooltip móvil */}
+                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-slate-500 text-xs sm:hidden">
+                    Toca para copiar
+                </div>
             </div>
-            {errorMsg && <div className="bg-red-500/10 text-red-400 text-sm font-bold p-2 rounded-lg inline-block">{errorMsg}</div>}
+
+            {errorMsg && (
+                <div className="bg-red-500/10 text-red-400 font-bold p-3 rounded-lg inline-block animate-pulse border border-red-500/20">
+                    ⚠️ {errorMsg}
+                </div>
+            )}
         </div>
 
-        {/* LISTA DE JUGADORES (Igual que antes) */}
-        <div className="flex-1 bg-slate-800/30 border border-white/5 rounded-3xl p-6 flex flex-col min-h-[200px]">
-            <div className="flex items-center justify-between mb-4">
+        {/* --- LISTA DE JUGADORES (Grid Responsive) --- */}
+        <div className="flex-1 bg-slate-800/30 border border-white/5 rounded-3xl p-6 sm:p-8 flex flex-col min-h-[300px]">
+            <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                     <Users className="text-indigo-400" size={20} />
-                    <h3 className="text-white font-bold">Jugadores</h3>
+                    <h3 className="text-white font-bold text-lg">Jugadores Conectados</h3>
                 </div>
-                <span className="bg-white/10 px-3 py-1 rounded-full text-xs font-mono text-white/80">{players.length} / 10</span>
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm font-mono text-white/80">
+                    {players.length} / 10
+                </span>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto custom-scrollbar content-start flex-1">
                 <AnimatePresence>
                     {players.map((p) => (
-                        <motion.div key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-slate-800 border border-white/5 p-3 rounded-xl flex items-center gap-4 relative overflow-hidden">
-                             <Avatar style={p.avatar?.style || 'bottts-neutral'} seed={p.avatar?.seed || p.name} className="w-10 h-10 bg-slate-900 rounded-full border border-white/10" />
+                        <motion.div 
+                            key={p.id}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="bg-slate-800 hover:bg-slate-700 border border-white/5 p-3 rounded-xl flex items-center gap-4 transition-colors group relative overflow-hidden"
+                        >
+                            {/* CORRECCIÓN AQUÍ: 
+                                Usamos p.avatar.style y p.avatar.seed que vienen del backend.
+                                Si por alguna razón fallan, usamos valores por defecto.
+                            */}
+                            <Avatar 
+                                style={p.avatar?.style || 'bottts-neutral'} 
+                                seed={p.avatar?.seed || p.name} 
+                                className="w-12 h-12 border-2 border-indigo-500/30 group-hover:border-indigo-400 transition-colors bg-slate-900" 
+                                bgColor="bg-slate-900"
+                            />
+                            
                             <div className="flex flex-col">
-                                <span className="text-white font-bold truncate max-w-[120px]">{p.name}</span>
-                                {p.isHost && <span className="text-[10px] font-bold text-amber-400 flex items-center gap-1"><Crown size={10} /> HOST</span>}
+                                <span className="text-white font-bold text-lg leading-tight truncate max-w-[120px] sm:max-w-[150px]">
+                                    {p.name}
+                                </span>
+                                {p.isHost && (
+                                    <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
+                                        <Crown size={12} fill="currentColor" /> ANFITRIÓN
+                                    </span>
+                                )}
                             </div>
+
+                            {/* Decoración fondo para el Host */}
+                            {p.isHost && (
+                                <div className="absolute right-0 top-0 p-2 opacity-10">
+                                    <Crown size={40} />
+                                </div>
+                            )}
                         </motion.div>
                     ))}
                 </AnimatePresence>
+                
+                {/* Placeholder Slots */}
+                {Array.from({ length: Math.max(0, 3 - players.length) }).map((_, i) => (
+                    <div key={`empty-${i}`} className="border-2 border-dashed border-white/5 rounded-xl p-4 flex items-center justify-center gap-2 text-white/20 h-[74px]">
+                        <div className="w-2 h-2 rounded-full bg-white/10 animate-pulse" />
+                        <span className="text-sm font-bold">Esperando...</span>
+                    </div>
+                ))}
             </div>
         </div>
 
-        {/* --- PANEL DE CONFIGURACIÓN & INICIO --- */}
+        {/* --- FOOTER: ACCIONES --- */}
         <div className="pt-2">
              {isHost ? (
-                 <div className="flex flex-col gap-4 bg-slate-900/50 p-4 rounded-2xl border border-indigo-500/20">
-                    
-                    {/* CONFIGURACIÓN: Solo visible para el host */}
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        
-                        {/* Selector de Impostores */}
-                        <div className="flex-1 bg-slate-800 p-3 rounded-xl flex items-center justify-between border border-white/5">
-                            <div className="flex items-center gap-2">
-                                <div className="bg-red-500/20 p-2 rounded-lg"><Users size={18} className="text-red-400"/></div>
-                                <span className="text-sm font-bold text-slate-300">Impostores</span>
-                            </div>
-                            <div className="flex items-center gap-3 bg-slate-900 rounded-lg p-1">
-                                <button onClick={() => setImpostorCount(Math.max(1, impostorCount - 1))} className="p-1 hover:bg-white/10 rounded text-white"><Minus size={16}/></button>
-                                <span className="font-mono font-bold text-white w-4 text-center">{impostorCount}</span>
-                                <button onClick={() => setImpostorCount(Math.min(3, impostorCount + 1))} className="p-1 hover:bg-white/10 rounded text-white"><Plus size={16}/></button>
-                            </div>
-                        </div>
-
-                        {/* Selector de Categoría */}
-                        <div className="flex-1 bg-slate-800 p-3 rounded-xl flex items-center justify-between border border-white/5">
-                            <div className="flex items-center gap-2">
-                                <div className="bg-blue-500/20 p-2 rounded-lg"><Grid size={18} className="text-blue-400"/></div>
-                                <span className="text-sm font-bold text-slate-300">Tema</span>
-                            </div>
-                            <select 
-                                value={selectedCategory} 
-                                onChange={(e) => setSelectedCategory(e.target.value)}
-                                className="bg-slate-900 text-white text-sm font-bold py-1.5 px-3 rounded-lg border-none focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
-                            >
-                                {CATEGORIES.map(cat => (
-                                    <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Botón de Inicio */}
+                 <div className="flex flex-col items-center gap-3">
                     <button 
                         onClick={handleStartGame}
                         disabled={players.length < 3}
-                        className={`w-full p-4 rounded-xl font-black text-white text-lg shadow-xl flex items-center justify-center gap-3 transition-all ${
+                        className={`w-full sm:w-auto sm:min-w-[300px] p-4 rounded-xl font-black text-white text-lg shadow-xl flex items-center justify-center gap-3 transition-all transform ${
                             players.length < 3 
                             ? 'bg-slate-700 opacity-50 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:scale-[1.02] hover:shadow-indigo-500/30'
+                            : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:scale-105 hover:shadow-emerald-500/30'
                         }`}
                     >
-                        {players.length < 3 ? `Esperando jugadores (${players.length}/3)` : <>INICIAR PARTIDA <Play size={24} fill="white" /></>}
+                        {players.length < 3 ? (
+                            <>Esperando jugadores ({players.length}/3)</>
+                        ) : (
+                            <>INICIAR PARTIDA <Play size={24} fill="white" /></>
+                        )}
                     </button>
+                    {players.length < 3 && (
+                        <p className="text-slate-500 text-sm animate-pulse">
+                            Necesitas al menos 3 jugadores para empezar.
+                        </p>
+                    )}
                  </div>
              ) : (
-                 // VISTA PARA JUGADORES NO HOST
                  <div className="w-full bg-indigo-900/20 border border-indigo-500/20 p-6 rounded-2xl text-center">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                        <Settings className="text-indigo-400 animate-spin-slow" size={20}/>
-                        <h3 className="text-white font-bold">El anfitrión está configurando</h3>
-                    </div>
-                    <p className="text-indigo-200/60 text-xs">Preparando la siguiente ronda...</p>
+                    <div className="animate-spin w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full mx-auto mb-3"/>
+                    <h3 className="text-white font-bold text-lg">Esperando al anfitrión</h3>
+                    <p className="text-indigo-200/60 text-sm">La partida comenzará pronto...</p>
                  </div>
              )}
         </div>
+
       </div>
     </Layout>
   );

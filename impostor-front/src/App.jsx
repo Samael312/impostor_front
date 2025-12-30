@@ -12,10 +12,6 @@ import LocalGame from './screen/LocalGame';
 function App() {
   return (
     <BrowserRouter>
-      {/* HE ELIMINADO EL WRAPPER GLOBAL (div max-w-md).
-        Ahora el control del diseño lo tiene cada página individualmente
-        mediante el componente <Layout>. Esto permite diseños responsivos.
-      */}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/online" element={<Online />} />

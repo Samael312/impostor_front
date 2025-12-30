@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Globe, Smartphone, ChevronRight, Gamepad2 } from 'lucide-react';
+import { Users, Globe, Smartphone, ChevronRight } from 'lucide-react';
 import { Layout } from '../components/ui/Layout';
 
 export default function Home() {
@@ -8,23 +8,21 @@ export default function Home() {
 
   return (
     <Layout>
-      <div className="flex flex-col items-center justify-center w-full gap-8 sm:gap-12">
+      <div className="flex flex-col h-full justify-between pt-10 pb-6">
         
-        {/* --- HERO SECTION: TÍTULO E ILUSTRACIÓN --- */}
-        <div className="text-center space-y-6 w-full">
-          {/* Título con efecto Glow */}
-          <div className="relative inline-block">
-            <h1 className="text-5xl sm:text-7xl mr-serif font-black text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 via-teal-300 to-cyan-500 drop-shadow-[0_0_25px_rgba(52,211,153,0.4)] tracking-tight">
-              IMPOSTOR
-            </h1>
-          </div>
+        {/* --- SECCIÓN DEL TÍTULO E ILUSTRACIÓN --- */}
+        <div className="text-center space-y-6">
+          {/* Título */}
+          <h1 className="text-5xl mr-serif font-black text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 via-teal-300 to-cyan-500 drop-shadow-[0_0_15px_rgba(52,211,153,0.4)]">
+            IMPOSTOR
+          </h1>
 
-          {/* ILUSTRACIÓN SVG ANIMADA */}
+          {/* NUEVA ILUSTRACIÓN DE IMPOSTOR (SVG Inline) */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="w-48 h-48 sm:w-56 sm:h-56 mx-auto relative drop-shadow-2xl"
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: 0.2, type: "spring" }}
+            className="w-40 h-40 mx-auto relative drop-shadow-[0_0_20px_rgba(0,0,0,0.5)]"
           >
             <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
               {/* Capucha/Sombra base */}
@@ -50,71 +48,64 @@ export default function Home() {
             </svg>
           </motion.div>
 
-          <p className="text-slate-400 text-lg sm:text-xl max-w-md mx-auto leading-relaxed font-medium px-4">
+          {/* Subtítulo */}
+          <p className="text-white/60 text-lg max-w-xs mx-auto leading-relaxed font-bold">
             Descubre quién miente antes de que sea demasiado tarde.
           </p>
         </div>
 
-        {/* --- GRID DE BOTONES (1 Columna móvil, 2 Columnas PC) --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full max-w-3xl px-2 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
+        {/* --- SECCIÓN DE BOTONES --- */}
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
           
           {/* BOTÓN LOCAL */}
           <motion.button
-            whileHover={{ scale: 1.02, y: -2 }}
-            whileTap={{ scale: 0.98 }}
+            whileTap={{ scale: 0.97 }} // Animación de pulsación
             onClick={() => navigate('/local/setup')}
-            className="group relative overflow-hidden bg-slate-800 hover:bg-slate-700 border border-emerald-500/30 hover:border-emerald-500/60 p-6 sm:p-8 rounded-3xl transition-all shadow-lg hover:shadow-emerald-500/10 text-left"
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 p-6 rounded-3xl shadow-lg shadow-emerald-500/20 flex items-center justify-between group relative overflow-hidden"
           >
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-               <Smartphone size={80} />
-            </div>
-            
-            <div className="relative z-10 flex flex-col h-full justify-between gap-4">
-              <div className="w-12 h-12 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 mb-2">
-                <Users size={24} />
+            <div className="absolute inset-0 bg-white/0 transition-colors group-hover:bg-white/10"/>
+            <div className="flex items-center gap-5">
+              <div className="bg-black/20 p-4 rounded-2xl backdrop-blur-sm">
+                <Smartphone size={32} className="text-white" />
               </div>
-              <div>
-                <h3 className="text-2xl font-bold text-white mb-1">Local</h3>
-                <p className="text-slate-400 text-sm">Un dispositivo, varios jugadores.</p>
-              </div>
-              <div className="flex items-center text-emerald-400 text-sm font-bold mt-2">
-                Jugar ahora <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform"/>
+              <div className="text-left">
+                <h3 className="text-2xl font-black text-white mb-1 tracking-wide">LOCAL</h3>
+                <p className="text-emerald-100 text-sm font-bold opacity-80 flex items-center gap-2">
+                  <Users size={14} /> Un solo dispositivo
+                </p>
               </div>
             </div>
+            <ChevronRight size={28} className="text-white/50 group-hover:text-white transition-colors group-hover:translate-x-1" />
           </motion.button>
 
-          {/* BOTÓN ONLINE */}
+          {/* BOTÓN ONLINE (Actualizado con la misma animación) */}
           <motion.button
-            whileHover={{ scale: 1.02, y: -2 }}
-            whileTap={{ scale: 0.98 }}
+            whileTap={{ scale: 0.97 }} 
             onClick={() => navigate('/online')}
-            className="group relative overflow-hidden bg-gradient-to-br from-indigo-600 to-violet-700 p-6 sm:p-8 rounded-3xl transition-all shadow-xl shadow-indigo-500/20 text-left"
+            className="w-full bg-gradient-to-r from-violet-600 to-indigo-700 p-6 rounded-3xl shadow-lg shadow-indigo-500/20 flex items-center justify-between group relative overflow-hidden"
           >
-            <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-30 transition-opacity">
-               <Globe size={80} className="text-white" />
-            </div>
+            <div className="absolute inset-0 bg-white/0 transition-colors group-hover:bg-white/5"/>
+            
 
-            <div className="relative z-10 flex flex-col h-full justify-between gap-4">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white mb-2 backdrop-blur-sm">
-                <Gamepad2 size={24} />
+            <div className="flex items-center gap-5 opacity-90">
+              <div className="bg-black/20 p-4 rounded-2xl backdrop-blur-sm">
+                <Globe size={32} className="text-indigo-100" />
               </div>
-              <div>
-                <h3 className="text-2xl font-bold text-white mb-1">Online</h3>
-                <p className="text-indigo-100 text-sm opacity-90">Crea o únete a una sala remota.</p>
-              </div>
-              <div className="flex items-center text-white text-sm font-bold mt-2">
-                Conectar <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform"/>
+              <div className="text-left">
+                <h3 className="text-2xl font-black text-indigo-100 mb-1 tracking-wide">ONLINE</h3>
+                <p className="text-indigo-200 text-sm font-bold opacity-70 flex items-center gap-2">
+                  <Users size={14} /> Multijugador remoto
+                </p>
               </div>
             </div>
+             <ChevronRight size={28} className="text-white/50 group-hover:text-white transition-colors group-hover:translate-x-1" />
           </motion.button>
-
         </div>
 
-        {/* Footer */}
-        <div className="text-slate-500 text-xs font-bold tracking-widest uppercase mt-4">
-          Versión 1.0 Beta
+        {/* Footer sutil */}
+        <div className="text-center text-white/30 text-xs font-bold tracking-widest uppercase py-2">
+          Versión 1.0
         </div>
-
       </div>
     </Layout>
   );

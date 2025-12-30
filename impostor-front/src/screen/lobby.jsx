@@ -1,15 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Crown, Play, Copy, Check, Share2 } from 'lucide-react'; 
-import { Layout, Avatar } from '../components/ui/Layout';
+import { Users, Crown, Play, Copy, Check, ArrowLeft } from 'lucide-react'; 
+import { Layout } from '../components/ui/Layout';
 import socket from '../socket';
 
 export default function Lobby() {
-  // --- LÓGICA DE CONEXIÓN ---
+  // --- CORRECCIÓN AQUÍ ---
+  // 1. Obtenemos los parámetros de la URL
   const params = useParams();
+  
+  // 2. Definimos roomId de forma segura. 
+  // Si falla el router, lo forzamos leyendo la URL del navegador.
   const roomId = params.roomId || window.location.pathname.split('/').pop();
   
+  // -----------------------
+
   const { state } = useLocation();
   const navigate = useNavigate();
 
@@ -18,44 +24,45 @@ export default function Lobby() {
   const [errorMsg, setErrorMsg] = useState('');
 
   const isHost = state?.isHost || false; 
+  // Si no hay state (ej. recarga de página), intentamos recuperar el nickname de localStorage o pedimos reingreso
   const myNickname = state?.nickname || localStorage.getItem('lastNickname');
-  
-  // Guardamos si ya nos unimos para evitar doble emit en modo estricto de React
-  const [joined, setJoined] = useState(false);
 
   useEffect(() => {
+    // Si no tenemos ID de sala o Nickname, mandar al inicio
     if (!roomId || !myNickname) {
         navigate('/');
         return;
     }
 
-    // Unirse a la sala si no venimos redirigidos con estado completo
-    if (!state?.players && !joined) {
+    // Unirse a la sala (por si recargó la página)
+    if (!state?.players) {
         socket.emit('join_room', { 
             roomCode: roomId, 
             nickname: myNickname,
             avatarConfig: state?.avatarConfig || {} 
         });
-        setJoined(true);
     }
 
-    const handleUpdatePlayers = (updatedPlayers) => setPlayers(updatedPlayers);
-    const handleGameStarted = (gameData) => navigate('/game', { state: { ...gameData, roomId } });
-    const handleError = (msg) => {
+    // Listeners
+    socket.on('update_players', (updatedPlayers) => {
+        setPlayers(updatedPlayers);
+    });
+
+    socket.on('game_started', (gameData) => {
+        navigate('/game', { state: { ...gameData, roomId } });
+    });
+
+    socket.on('error_message', (msg) => {
         setErrorMsg(msg);
         setTimeout(() => navigate('/'), 3000);
-    };
-
-    socket.on('update_players', handleUpdatePlayers);
-    socket.on('game_started', handleGameStarted);
-    socket.on('error_message', handleError);
+    });
 
     return () => {
-        socket.off('update_players', handleUpdatePlayers);
-        socket.off('game_started', handleGameStarted);
-        socket.off('error_message', handleError);
+        socket.off('update_players');
+        socket.off('game_started');
+        socket.off('error_message');
     };
-  }, [roomId, myNickname, navigate, state, joined]);
+  }, [roomId, myNickname, navigate, state]);
 
   const copyCode = () => {
     navigator.clipboard.writeText(roomId);
@@ -69,145 +76,74 @@ export default function Lobby() {
 
   return (
     <Layout>
-      <div className="flex flex-col h-full w-full max-w-4xl mx-auto gap-8">
-        
-        {/* --- HEADER: CÓDIGO DE SALA --- */}
-        <div className="text-center space-y-4">
-            <h2 className="text-slate-400 text-sm font-bold uppercase tracking-widest">
-                SALA DE ESPERA
-            </h2>
-            
-            <div className="relative group inline-block">
-                <button 
-                    onClick={copyCode}
-                    className="bg-slate-800/50 hover:bg-slate-800 border-2 border-slate-700 hover:border-indigo-500/50 rounded-2xl px-8 py-5 flex items-center gap-6 mx-auto transition-all duration-300 shadow-xl"
-                >
-                    <div className="text-left">
-                        <p className="text-xs text-slate-500 font-bold mb-1">CÓDIGO DE ACCESO</p>
-                        <span className="text-5xl sm:text-6xl font-black text-white tracking-widest font-mono">
-                            {roomId}
-                        </span>
-                    </div>
-                    <div className="h-12 w-px bg-white/10 mx-2" />
-                    <div className="flex flex-col items-center justify-center gap-1 min-w-[3rem]">
-                        {copied ? (
-                            <Check className="text-emerald-400 w-8 h-8" />
-                        ) : (
-                            <Copy className="text-slate-400 group-hover:text-white w-8 h-8 transition-colors" />
-                        )}
-                        <span className="text-[10px] font-bold text-slate-500 group-hover:text-white/80">
-                            {copied ? '¡LISTO!' : 'COPIAR'}
-                        </span>
-                    </div>
-                </button>
-                
-                {/* Tooltip móvil */}
-                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-slate-500 text-xs sm:hidden">
-                    Toca para copiar
-                </div>
-            </div>
-
-            {errorMsg && (
-                <div className="bg-red-500/10 text-red-400 font-bold p-3 rounded-lg inline-block animate-pulse border border-red-500/20">
-                    ⚠️ {errorMsg}
-                </div>
-            )}
+      <div className="flex flex-col h-full">
+        {/* Header con Código de Sala */}
+        <div className="text-center py-4 space-y-2">
+            <h2 className="text-white/60 text-sm font-bold uppercase tracking-widest">CÓDIGO DE SALA</h2>
+            <button 
+                onClick={copyCode}
+                className="bg-white/10 border-2 border-white/20 rounded-xl px-8 py-4 flex items-center gap-4 mx-auto active:scale-95 transition-all hover:bg-white/20 group"
+            >
+                <span className="text-4xl font-black text-white tracking-widest font-mono">
+                    {roomId} {/* <--- Aquí es donde fallaba antes */}
+                </span>
+                {copied ? <Check className="text-emerald-400" /> : <Copy className="text-white/50 group-hover:text-white" />}
+            </button>
+            {errorMsg && <p className="text-red-400 font-bold animate-pulse">{errorMsg}</p>}
         </div>
 
-        {/* --- LISTA DE JUGADORES (Grid Responsive) --- */}
-        <div className="flex-1 bg-slate-800/30 border border-white/5 rounded-3xl p-6 sm:p-8 flex flex-col min-h-[300px]">
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                    <Users className="text-indigo-400" size={20} />
-                    <h3 className="text-white font-bold text-lg">Jugadores Conectados</h3>
-                </div>
-                <span className="bg-white/10 px-3 py-1 rounded-full text-sm font-mono text-white/80">
-                    {players.length} / 10
-                </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto custom-scrollbar content-start flex-1">
+        {/* Lista de Jugadores */}
+        <div className="flex-1 overflow-y-auto px-2 custom-scrollbar">
+            <div className="grid grid-cols-1 gap-3">
                 <AnimatePresence>
                     {players.map((p) => (
                         <motion.div 
                             key={p.id}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9 }}
-                            className="bg-slate-800 hover:bg-slate-700 border border-white/5 p-3 rounded-xl flex items-center gap-4 transition-colors group relative overflow-hidden"
+                            className="bg-white/5 border border-white/10 p-3 rounded-xl flex items-center justify-between"
                         >
-                            {/* Avatar */}
-                            <Avatar 
-                                seed={p.name} 
-                                className="w-12 h-12 border-2 border-indigo-500/30 group-hover:border-indigo-400 transition-colors" 
-                                bgColor="bg-slate-900"
-                            />
-                            
-                            <div className="flex flex-col">
-                                <span className="text-white font-bold text-lg leading-tight truncate max-w-[120px] sm:max-w-[150px]">
-                                    {p.name}
-                                </span>
-                                {p.isHost && (
-                                    <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
-                                        <Crown size={12} fill="currentColor" /> ANFITRIÓN
-                                    </span>
-                                )}
-                            </div>
-
-                            {/* Decoración fondo */}
-                            {p.isHost && (
-                                <div className="absolute right-0 top-0 p-2 opacity-10">
-                                    <Crown size={40} />
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold border-2 border-white/20">
+                                    {p.avatar?.emoji || p.name[0].toUpperCase()}
                                 </div>
-                            )}
+                                <span className="text-white font-bold text-lg">{p.name}</span>
+                            </div>
+                            {p.isHost && <Crown size={20} className="text-yellow-400 drop-shadow-lg" />}
                         </motion.div>
                     ))}
                 </AnimatePresence>
-                
-                {/* Placeholder Slots (Opcional, para que se vea que hay hueco) */}
-                {Array.from({ length: Math.max(0, 3 - players.length) }).map((_, i) => (
-                    <div key={`empty-${i}`} className="border-2 border-dashed border-white/5 rounded-xl p-4 flex items-center justify-center gap-2 text-white/20 h-[74px]">
-                        <div className="w-2 h-2 rounded-full bg-white/10 animate-pulse" />
-                        <span className="text-sm font-bold">Esperando...</span>
-                    </div>
-                ))}
             </div>
         </div>
 
-        {/* --- FOOTER: ACCIONES --- */}
-        <div className="pt-2">
+        {/* Footer: Botón Iniciar */}
+        <div className="pt-4 pb-2">
+             <div className="text-center mb-2">
+                <p className="text-white/40 text-xs font-bold">
+                    {players.length} JUGADORES CONECTADOS
+                </p>
+             </div>
+
              {isHost ? (
-                 <div className="flex flex-col items-center gap-3">
-                    <button 
-                        onClick={handleStartGame}
-                        disabled={players.length < 3}
-                        className={`w-full sm:w-auto sm:min-w-[300px] p-4 rounded-xl font-black text-white text-lg shadow-xl flex items-center justify-center gap-3 transition-all transform ${
-                            players.length < 3 
-                            ? 'bg-slate-700 opacity-50 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:scale-105 hover:shadow-emerald-500/30'
-                        }`}
-                    >
-                        {players.length < 3 ? (
-                            <>Esperando jugadores ({players.length}/3)</>
-                        ) : (
-                            <>INICIAR PARTIDA <Play size={24} fill="white" /></>
-                        )}
-                    </button>
-                    {players.length < 3 && (
-                        <p className="text-slate-500 text-sm animate-pulse">
-                            Necesitas al menos 3 jugadores para empezar.
-                        </p>
-                    )}
-                 </div>
+                 <button 
+                    onClick={handleStartGame}
+                    disabled={players.length < 3} // <--- Deshabilitado si hay pocos
+                    className={`w-full p-4 rounded-xl font-black text-white text-lg shadow-xl flex items-center justify-center gap-3 transition-all ${
+                        players.length < 3 
+                        ? 'bg-gray-600 opacity-50 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 active:scale-95 shadow-emerald-900/50'
+                    }`}
+                 >
+                    {players.length < 3 ? 'ESPERANDO JUGADORES...' : 'INICIAR PARTIDA'}
+                    {players.length >= 3 && <Play size={24} fill="white" />}
+                 </button>
              ) : (
-                 <div className="w-full bg-indigo-900/20 border border-indigo-500/20 p-6 rounded-2xl text-center">
-                    <div className="animate-spin w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full mx-auto mb-3"/>
-                    <h3 className="text-white font-bold text-lg">Esperando al anfitrión</h3>
-                    <p className="text-indigo-200/60 text-sm">La partida comenzará pronto...</p>
+                 <div className="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-center">
+                    <p className="text-white font-bold animate-pulse">Esperando al anfitrión...</p>
                  </div>
              )}
         </div>
-
       </div>
     </Layout>
   );

@@ -32,8 +32,15 @@ export default function Home() {
   };
 
   const handleCreate = () => {
-    if (!nickname) return;
-    navigate(`/lobby/ABCD`, { state: { nickname, isHost: true, avatarConfig: AVATAR_OPTIONS[currentIndex] } });
+    if (!nickname) return alert("¡Ponte un nombre primero!");
+    
+    // CAMBIO: En lugar de emitir socket, navegamos a la configuración
+    navigate('/create', { 
+        state: { 
+            nickname, 
+            avatarConfig: AVATAR_OPTIONS[currentIndex] 
+        } 
+    });
   };
 
   const handleJoin = () => {

@@ -1,211 +1,278 @@
-import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Eye, CheckCircle, AlertTriangle, Fingerprint, ArrowRight, Loader2 } from 'lucide-react';
-import { Layout, Avatar } from '../components/ui/Layout';
-
-const LOCATIONS = ["La Playa", "Submarino", "Estación Espacial", "El Circo", "Hospital", "Banco", "Casino", "Avión", "Hotel", "Pirámides"];
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Users, UserX, Play, ArrowLeft, Eye, CheckCircle, AlertTriangle, RefreshCw, ArrowRight, Check } from 'lucide-react';
+import { Layout } from '../components/ui/Layout';
+import { DICTIONARIES, CATEGORIES_UI } from '../data/localDictionaries';
 
 export default function LocalGame() {
-  const { state } = useLocation();
   const navigate = useNavigate();
-  
-  // ESTADOS
-  const [gamePhase, setGamePhase] = useState('distributing'); 
-  const [turnIndex, setTurnIndex] = useState(0); 
-  const [isRevealed, setIsRevealed] = useState(false); 
-  const [cardFlipped, setCardFlipped] = useState(false); 
-  
-  // DATOS
-  const [gameData, setGameData] = useState(null); // Empezamos en null para mostrar carga
 
-  useEffect(() => {
-    // PROTECCIÓN: Si no hay jugadores (por recargar página), volver al inicio
-    if (!state?.players || state.players.length === 0) {
-      navigate('/');
-      return;
+  // --- ESTADOS DEL JUEGO ---
+  const [phase, setPhase] = useState('setup'); // setup | pass | reveal | playing
+  
+  // Configuración
+  const [playerCount, setPlayerCount] = useState(4);
+  const [impostorCount, setImpostorCount] = useState(1);
+  const [selectedCat, setSelectedCat] = useState('venezolano');
+
+  // Datos de la partida actual
+  const [gameData, setGameData] = useState({
+    word: '',
+    category: '',
+    roles: [], // Array de 'civil' o 'impostor'
+    currentPlayerIndex: 0
+  });
+
+  const [cardFlipped, setCardFlipped] = useState(false);
+
+  // --- LÓGICA ---
+
+  const startGame = () => {
+    // 1. Elegir palabra
+    const wordList = DICTIONARIES[selectedCat];
+    const secretWord = wordList[Math.floor(Math.random() * wordList.length)];
+
+    // 2. Asignar roles
+    let roles = Array(playerCount).fill('civil');
+    // Insertar impostores al azar
+    let impostorsAdded = 0;
+    while (impostorsAdded < impostorCount) {
+        const randomIndex = Math.floor(Math.random() * playerCount);
+        if (roles[randomIndex] === 'civil') {
+            roles[randomIndex] = 'impostor';
+            impostorsAdded++;
+        }
     }
-    
-    const location = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)];
-    const impostorIndex = Math.floor(Math.random() * state.players.length);
-    
-    const playersWithRoles = state.players.map((p, i) => ({
-      ...p,
-      isImpostor: i === impostorIndex
-    }));
 
-    setGameData({ players: playersWithRoles, location, impostorId: playersWithRoles[impostorIndex].id });
-  }, [state, navigate]);
+    setGameData({
+        word: secretWord,
+        category: selectedCat,
+        roles: roles,
+        currentPlayerIndex: 0
+    });
 
-  // PANTALLA DE CARGA (Para evitar pantalla azul/vacía)
-  if (!gameData) {
-    return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center h-full text-white">
-          <Loader2 className="animate-spin mb-4" size={48} />
-          <p>Preparando partida...</p>
-        </div>
-      </Layout>
-    );
-  }
-
-  // Variables útiles
-  const currentPlayer = gameData.players[turnIndex];
-  const isLastPlayer = turnIndex === gameData.players.length - 1;
-
-  const handleNextTurn = () => {
-    setCardFlipped(false);
-    // Pequeño timeout para que la animación de cierre se vea antes de cambiar de jugador
-    setTimeout(() => {
-      setIsRevealed(false);
-      if (isLastPlayer) {
-        setGamePhase('playing');
-      } else {
-        setTurnIndex(prev => prev + 1);
-      }
-    }, 300);
+    setPhase('pass');
   };
 
-  // --- FASE FINAL: DEBATE ---
-  if (gamePhase === 'playing') {
+  const nextPlayer = () => {
+    setCardFlipped(false); // Resetear carta
+    if (gameData.currentPlayerIndex + 1 < playerCount) {
+        setGameData(prev => ({ ...prev, currentPlayerIndex: prev.currentPlayerIndex + 1 }));
+        setPhase('pass');
+    } else {
+        setPhase('playing');
+    }
+  };
+
+  // --- RENDERIZADO POR FASES ---
+
+  // 1. PANTALLA DE CONFIGURACIÓN
+  if (phase === 'setup') {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center h-full space-y-8 text-center pt-10">
-          <motion.div 
-            initial={{ scale: 0 }} animate={{ scale: 1 }}
-            className="w-24 h-24 bg-red-500 rounded-full flex items-center justify-center shadow-2xl animate-pulse"
-          >
-            <AlertTriangle size={48} className="text-white" />
-          </motion.div>
-          
-          <div>
-            <h2 className="text-4xl font-black text-white mb-2">¡A DEBATIR!</h2>
-            <p className="text-white/60">El impostor está entre nosotros.</p>
-          </div>
-
-          <div className="bg-white/5 p-6 rounded-2xl w-full border border-white/10">
-            <p className="text-sm font-bold text-white/40 uppercase mb-4">Jugadores</p>
-            <div className="flex flex-wrap gap-4 justify-center">
-              {gameData.players.map(p => (
-                <div key={p.id} className="flex flex-col items-center">
-                    <Avatar style="bottts-neutral" seed={`local-player-${p.id}`} className="w-12 h-12 mb-1" />
-                    <span className="text-xs text-white/70 font-bold">{p.name}</span>
-                </div>
-              ))}
+        <div className="flex flex-col h-full overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center gap-4 py-2 shrink-0">
+                <button onClick={() => navigate('/')} className="p-2 bg-white/10 rounded-full hover:bg-white/20">
+                    <ArrowLeft className="text-white" size={20} />
+                </button>
+                <h2 className="text-xl font-black text-white">Partida Local</h2>
             </div>
-          </div>
 
-          <button 
-            onClick={() => navigate('/')} 
-            className="w-full bg-white/10 hover:bg-white/20 py-4 rounded-xl font-bold mt-auto text-white transition-colors"
-          >
-            Terminar Partida
-          </button>
+            {/* Scroll Area */}
+            <div className="flex-1 overflow-y-auto min-h-0 py-4 space-y-6 pr-2 custom-scrollbar">
+                
+                {/* Sliders */}
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-6">
+                    <div>
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-white font-bold flex items-center gap-2"><Users size={18}/> Jugadores</span>
+                            <span className="text-emerald-400 font-black text-xl">{playerCount}</span>
+                        </div>
+                        <input 
+                            type="range" min="3" max="20" 
+                            value={playerCount} onChange={(e) => setPlayerCount(parseInt(e.target.value))}
+                            className="w-full accent-emerald-500 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                        />
+                    </div>
+                    <div>
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-white font-bold flex items-center gap-2"><UserX size={18} className="text-red-400"/> Impostores</span>
+                            <span className="text-red-400 font-black text-xl">{impostorCount}</span>
+                        </div>
+                        <input 
+                            type="range" min="1" max={Math.floor((playerCount - 1) / 2)} 
+                            value={impostorCount} onChange={(e) => setImpostorCount(parseInt(e.target.value))}
+                            className="w-full accent-red-500 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                        />
+                    </div>
+                </div>
+
+                {/* Categorías */}
+                <div>
+                    <p className="text-white/50 text-xs font-bold uppercase tracking-wider mb-3">Temática</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        {CATEGORIES_UI.map(cat => (
+                            <button
+                                key={cat.id}
+                                onClick={() => setSelectedCat(cat.id)}
+                                className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                                    selectedCat === cat.id 
+                                    ? 'bg-pink-600 border-pink-500 text-white shadow-lg' 
+                                    : 'bg-white/5 border-white/10 text-white/50'
+                                }`}
+                            >
+                                <span className="font-bold text-xs flex items-center gap-2">{cat.icon} {cat.name}</span>
+                                {selectedCat === cat.id && <Check size={16} />}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Botón Start */}
+            <div className="pt-4 shrink-0">
+                <button 
+                    onClick={startGame}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 p-4 rounded-xl font-black text-white text-lg shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-transform"
+                >
+                    COMENZAR <Play size={20} className="fill-white"/>
+                </button>
+            </div>
         </div>
       </Layout>
     );
   }
 
-  // --- FASE DE REPARTO ---
-  return (
-    <Layout>
-      <div className="h-full flex flex-col items-center justify-between py-4">
-        
-        <div className="w-full text-center">
-          <span className="text-xs font-bold text-white/40 uppercase tracking-widest">
-            JUGADOR {turnIndex + 1} de {gameData.players.length}
-          </span>
-        </div>
+  // 2. PANTALLA DE "PASAR AL SIGUIENTE"
+  if (phase === 'pass') {
+    return (
+        <Layout>
+            <div className="flex flex-col items-center justify-center h-full space-y-8 animate-in fade-in zoom-in">
+                <div className="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center border-4 border-white/20">
+                    <span className="text-4xl font-black text-white">{gameData.currentPlayerIndex + 1}</span>
+                </div>
+                
+                <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-bold text-white">Turno del Jugador {gameData.currentPlayerIndex + 1}</h2>
+                    <p className="text-white/50 text-sm max-w-[200px] mx-auto">
+                        Pásale el dispositivo a esta persona y asegúrate de que nadie más mire.
+                    </p>
+                </div>
 
-        {/* CONTENIDO CENTRAL */}
-        {!isRevealed ? (
-          // PANTALLA: PASAR AL SIGUIENTE
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }} 
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center space-y-6 flex-1 justify-center"
-          >
-            <div className="w-40 h-40">
-                <Avatar style="bottts-neutral" seed={`local-player-${currentPlayer.id}`} className="w-full h-full shadow-2xl" />
+                <button 
+                    onClick={() => setPhase('reveal')}
+                    className="bg-white text-black font-black px-8 py-4 rounded-2xl shadow-xl hover:scale-105 transition-transform flex items-center gap-2"
+                >
+                    SOY EL JUGADOR {gameData.currentPlayerIndex + 1} <ArrowRight size={20}/>
+                </button>
             </div>
-            <div className="text-center">
-              <p className="text-white/50 text-sm font-bold uppercase mb-2">Pasa el móvil a</p>
-              <h2 className="text-4xl font-black text-emerald-400">{currentPlayer.name}</h2>
+        </Layout>
+    );
+  }
+
+  // 3. PANTALLA DE REVELAR ROL (CARTA 3D)
+  if (phase === 'reveal') {
+    const isImpostor = gameData.roles[gameData.currentPlayerIndex] === 'impostor';
+
+    return (
+        <Layout>
+            <div className="h-full flex flex-col items-center justify-center py-4 space-y-6">
+                <p className="text-white/60 text-sm uppercase tracking-widest font-bold">Tu Misión Secreta</p>
+                
+                <div 
+                    className="w-full max-w-[280px] h-[400px] relative cursor-pointer group perspective-1000" 
+                    onClick={() => setCardFlipped(!cardFlipped)}
+                >
+                    <motion.div
+                        className="w-full h-full relative transform-style-3d"
+                        initial={false}
+                        animate={{ rotateY: cardFlipped ? 180 : 0 }}
+                        transition={{ duration: 0.6, type: "spring", stiffness: 260, damping: 20 }}
+                    >
+                        {/* FRENTE */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-violet-600 to-indigo-900 rounded-3xl shadow-2xl flex flex-col items-center justify-center border-4 border-white/10 backface-hidden">
+                            <Eye size={60} className="text-white/40 mb-6 animate-pulse" />
+                            <h2 className="text-2xl font-black text-white tracking-widest mb-2">TOP SECRET</h2>
+                            <p className="text-xs text-white/50 font-bold bg-black/20 px-4 py-2 rounded-lg">TOCA PARA REVELAR</p>
+                        </div>
+
+                        {/* DORSO */}
+                        <div className={`absolute inset-0 rounded-3xl shadow-2xl flex flex-col items-center justify-center p-6 text-center border-4 backface-hidden rotate-y-180 ${isImpostor ? 'bg-red-600 border-red-400' : 'bg-emerald-500 border-emerald-300'}`}>
+                            {isImpostor ? 
+                                <AlertTriangle size={80} className="text-white mb-6 drop-shadow-lg"/> : 
+                                <CheckCircle size={80} className="text-white mb-6 drop-shadow-lg"/>
+                            }
+                            
+                            <h2 className="text-4xl font-black text-white mb-2 drop-shadow-md">
+                                {isImpostor ? "IMPOSTOR" : "CIVIL"}
+                            </h2>
+                            
+                            <div className="w-full h-px bg-white/30 my-6"/>
+                            
+                            <p className="text-white/80 text-xs uppercase font-bold mb-2">Palabra Clave:</p>
+                            <p className="text-3xl font-black text-white leading-tight break-words drop-shadow-md">
+                                {isImpostor ? "???" : gameData.word}
+                            </p>
+                            
+                            {isImpostor && <p className="mt-4 text-xs font-bold text-white/60">Disimula y descubre la palabra.</p>}
+                        </div>
+                    </motion.div>
+                </div>
+
+                {cardFlipped && (
+                    <button 
+                        onClick={nextPlayer}
+                        className="mt-6 bg-white/10 border border-white/20 text-white font-bold px-8 py-3 rounded-xl hover:bg-white/20 transition-all animate-in fade-in slide-in-from-bottom-4"
+                    >
+                        {gameData.currentPlayerIndex + 1 === playerCount ? 'EMPEZAR JUEGO' : 'SIGUIENTE JUGADOR'}
+                    </button>
+                )}
             </div>
-            <button 
-              onClick={() => setIsRevealed(true)}
-              className="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-full font-bold flex items-center gap-3 transition-all border border-white/20 mt-8 shadow-lg"
-            >
-              <Fingerprint /> Soy {currentPlayer.name}, ver mi rol
-            </button>
-          </motion.div>
-        ) : (
-          // PANTALLA: CARTA 3D (Con estilos forzados para asegurar que funcione)
-          <div 
-             className="w-full max-w-[280px] h-[380px] relative cursor-pointer group mt-4" 
-             style={{ perspective: "1000px" }} // Forzamos la perspectiva aquí
-             onClick={() => setCardFlipped(!cardFlipped)}
-          >
-            <motion.div
-              className="w-full h-full relative"
-              initial={false}
-              animate={{ rotateY: cardFlipped ? 180 : 0 }}
-              transition={{ duration: 0.6, type: "spring", stiffness: 260, damping: 20 }}
-              style={{ transformStyle: "preserve-3d" }} // Forzamos estilo 3D
-            >
-              {/* FRENTE (Interrogación) */}
-              <div 
-                className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl shadow-2xl flex flex-col items-center justify-center border-4 border-white/10"
-                style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }} // Ocultamos la espalda
-              >
-                <Eye size={60} className="text-white/30 mb-4 animate-bounce" />
-                <p className="font-black text-xl text-white tracking-widest text-center px-4">HOLA {currentPlayer.name.toUpperCase()}</p>
-                <p className="text-sm text-white/50 mt-2 font-bold">TOCA PARA GIRAR</p>
-              </div>
+        </Layout>
+    );
+  }
 
-              {/* DORSO (RESULTADO) */}
-              <div 
-                 className={`absolute inset-0 rounded-3xl shadow-2xl flex flex-col items-center justify-center p-6 text-center border-4 ${currentPlayer.isImpostor ? 'bg-red-600 border-red-400' : 'bg-blue-500 border-blue-300'}`}
-                 style={{ 
-                   backfaceVisibility: "hidden", 
-                   WebkitBackfaceVisibility: "hidden", 
-                   transform: "rotateY(180deg)" 
-                 }}
-              >
-                 {currentPlayer.isImpostor ? 
-                    <AlertTriangle size={64} className="text-white mb-4 drop-shadow-lg"/> : 
-                    <CheckCircle size={64} className="text-white mb-4 drop-shadow-lg"/>
-                 }
-                 
-                 <h2 className="text-3xl font-black text-white mb-2 filter drop-shadow-md">
-                   {currentPlayer.isImpostor ? "IMPOSTOR" : "CIVIL"}
-                 </h2>
-                 
-                 <div className="w-full h-px bg-white/30 my-4"/>
-                 
-                 <p className="text-white/80 text-sm uppercase font-bold mb-1">Tu ubicación:</p>
-                 <p className="text-2xl font-black text-white leading-tight break-words filter drop-shadow-md">
-                   {currentPlayer.isImpostor ? "???" : gameData.location}
-                 </p>
-              </div>
-            </motion.div>
-          </div>
-        )}
+  // 4. PANTALLA DE JUEGO (CRONÓMETRO/VOTACIÓN)
+  if (phase === 'playing') {
+    return (
+        <Layout>
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-8">
+                <div className="bg-emerald-500/20 p-6 rounded-full border-2 border-emerald-500/50 animate-pulse">
+                     <Users size={64} className="text-emerald-400" />
+                </div>
+                
+                <div>
+                    <h2 className="text-4xl font-black text-white mb-2">¡A DEBATIR!</h2>
+                    <p className="text-white/60">¿Quién es el impostor?</p>
+                </div>
 
-        {/* BOTÓN SIGUIENTE (Solo sale si ya giraste la carta) */}
-        <div className="w-full h-20 flex items-end">
-          {isRevealed && cardFlipped && (
-             <motion.button 
-               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-               onClick={handleNextTurn}
-               className="w-full bg-white text-black py-4 rounded-xl font-black text-lg shadow-xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors z-50"
-             >
-               {isLastPlayer ? "¡EMPEZAR JUEGO!" : "OCULTAR Y PASAR"} <ArrowRight size={20} />
-             </motion.button>
-          )}
-        </div>
+                <div className="bg-white/5 p-6 rounded-2xl w-full max-w-xs border border-white/10">
+                    <p className="text-xs text-white/40 uppercase font-bold mb-2">Categoría</p>
+                    <p className="text-xl font-bold text-white mb-4">{CATEGORIES_UI.find(c => c.id === gameData.category)?.name}</p>
+                    
+                    <div className="h-px bg-white/10 my-4"/>
+                    
+                    <p className="text-xs text-white/40 uppercase font-bold mb-2">Palabra (Solo para verificar)</p>
+                    <button 
+                        onClick={() => alert(`La palabra era: ${gameData.word}`)}
+                        className="text-xs bg-white/10 px-3 py-1 rounded text-white/50 hover:text-white"
+                    >
+                        Ver Palabra
+                    </button>
+                </div>
 
-      </div>
-    </Layout>
-  );
+                <button 
+                    onClick={() => setPhase('setup')}
+                    className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white font-bold px-8 py-4 rounded-xl shadow-lg transition-colors mt-8"
+                >
+                    <RefreshCw size={20}/> JUGAR OTRA VEZ
+                </button>
+            </div>
+        </Layout>
+    );
+  }
+
+  return null;
 }

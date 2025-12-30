@@ -5,6 +5,7 @@ import Lobby from './screen/lobby';
 import Game from './screen/game';
 import LocalSetup from './screen/LocalSetup';
 import LocalGame from './screen/LocalGame';
+import CreateGame from './screen/CreateGame';
 //import Voting from './screen/voting';
 
 function App() {
@@ -15,7 +16,8 @@ function App() {
         <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-white/20">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/lobby/:roomCode" element={<Lobby />} />
+            <Route path="/create" element={<CreateGame />} />
+            <Route path="/lobby/:roomId" element={<Lobby />} />
             <Route path="/game" element={<Game />} />
             <Route path="/local/setup" element={<LocalSetup />} /> 
             <Route path="/local/game" element={<LocalGame />} />  
